@@ -5,6 +5,7 @@ import { HealthController } from './modules/health/health.controller';
 import { ConfigModule } from '@nestjs/config';
 import { DrizzleModule } from './database/drizzle.module';
 import configuration from './config/configuration';
+import { StravaModule } from './modules/strava/strava.module';
 
 @Module({
   imports: [
@@ -35,10 +36,19 @@ import configuration from './config/configuration';
           throw new Error('STRAVA_REDIRECT_URI must be a valid URL');
         }
 
+        if (env.FRONTEND_URL) {
+          try {
+            new URL(env.FRONTEND_URL);
+          } catch {
+            throw new Error('FRONTEND_URL must be a valid URL');
+          }
+        }
+
         return env;
       },
     }),
     DrizzleModule,
+    StravaModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
