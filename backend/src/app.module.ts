@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { HealthController } from './health/health.controller';
+import { HealthController } from './modules/health/health.controller';
 import { ConfigModule } from '@nestjs/config';
-import { DrizzleModule } from './drizzle/drizzle.module';
+import { DrizzleModule } from './database/drizzle.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -11,6 +11,32 @@ import configuration from './config/configuration';
     ConfigModule.forRoot({
       load: [configuration],
       isGlobal: true,
+      validate: (env) => {
+        // so backend crashes early if env is missing or invalid
+        if (!env.DATABASE_URL) {
+          throw new Error('DATABASE_URL is required');
+        }
+
+        if (!env.STRAVA_CLIENT_ID) {
+          throw new Error('STRAVA_CLIENT_ID is required');
+        }
+
+        if (!env.STRAVA_CLIENT_SECRET) {
+          throw new Error('STRAVA_CLIENT_SECRET is required');
+        }
+
+        if (!env.STRAVA_REDIRECT_URI) {
+          throw new Error('STRAVA_REDIRECT_URI is required');
+        }
+
+        try {
+          new URL(env.STRAVA_REDIRECT_URI);
+        } catch {
+          throw new Error('STRAVA_REDIRECT_URI must be a valid URL');
+        }
+
+        return env;
+      },
     }),
     DrizzleModule,
   ],
