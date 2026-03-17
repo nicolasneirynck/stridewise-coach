@@ -41,13 +41,13 @@ export class StravaController {
       // 1. save tokens in strava_connections
       // 2. link to the current user
       return {
-        url: this.stravaService.buildFrontendRedirectUrl('success', {
+        url: this.stravaService.getFrontendCallbackUrl('success', {
           athleteId: String(tokenResponse.athlete.id),
         }),
       };
     } catch {
       return {
-        url: this.stravaService.buildFrontendRedirectUrl('error', {
+        url: this.stravaService.getFrontendCallbackUrl('error', {
           reason: 'token_exchange_failed',
         }),
       };

@@ -1,120 +1,88 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const pathname = window.location.pathname
+  const searchParams = new URLSearchParams(window.location.search)
+  const isCallbackPage = pathname === '/strava/callback'
+
+  const status = searchParams.get('status')
+  const athleteId = searchParams.get('athleteId')
+  const reason = searchParams.get('reason')
+
+  const handleConnectClick = () => {
+    setIsRedirecting(true)
+    window.location.href = `${apiBaseUrl}/strava/connect`
+  }
+
+  const handleRetryClick = () => {
+    window.location.href = '/'
+  }
+
+  const getErrorMessage = () => {
+    switch (reason) {
+      case 'access_denied':
+        return 'Strava access was denied. Please approve the request to continue.'
+      case 'missing_code':
+        return 'No authorization code was returned by Strava. Please try again.'
+      case 'token_exchange_failed':
+        return 'StrideWise could not complete the Strava token exchange. Please try again.'
+      default:
+        return 'The Strava connection could not be completed. Please try again.'
+    }
+  }
+
+  if (isCallbackPage) {
+    const isSuccess = status === 'success'
+
+    return (
+      <main className="status-page">
+        <section className="status-card">
+          <p className="eyebrow">StrideWise x Strava</p>
+          <h1>{isSuccess ? 'Strava connected' : 'Connection failed'}</h1>
+          <p className="status-copy">
+            {isSuccess
+              ? `Your Strava authorization worked${athleteId ? ` for athlete ${athleteId}` : ''}. You can now continue with activity import in the next sprint.`
+              : getErrorMessage()}
+          </p>
+          <div className="status-actions">
+            <button className="secondary-button" onClick={handleRetryClick}>
+              {isSuccess ? 'Back to connect page' : 'Try again'}
+            </button>
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+    <main className="connect-page">
+      <section className="connect-card">
+        <p className="eyebrow">StrideWise MVP</p>
+        <h1>Connect your Strava account</h1>
+        <p className="lead">
+          Authorize StrideWise to access your running and cycling activities so
+          they can be imported into the application.
+        </p>
+        <p className="connection-label">Status: Not connected</p>
+
+        <div className="connect-actions">
+          <button
+            className="primary-button"
+            onClick={handleConnectClick}
+            disabled={isRedirecting}
+          >
+            {isRedirecting ? 'Redirecting to Strava...' : 'Connect Strava account'}
+          </button>
+          <p className="hint">
+            You will be redirected to Strava to approve access for StrideWise.
           </p>
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
       </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    </main>
   )
 }
 
