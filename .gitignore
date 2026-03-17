@@ -1,0 +1,39 @@
+# Node
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+build
+**/dist
+**/build
+
+# Logs
+logs
+*.log
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Coverage
+coverage
+.nyc_output
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+
+# Temp
+.temp
+.tmp
+
+# Runtime
+pids
+*.pid
