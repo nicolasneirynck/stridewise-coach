@@ -1,6 +1,6 @@
 CREATE TABLE `strava_connections` (
 	`id` int unsigned AUTO_INCREMENT NOT NULL,
-	`user_id` int NOT NULL,
+	`user_id` int unsigned NOT NULL,
 	`strava_athlete_id` int NOT NULL,
 	`access_token` varchar(255) NOT NULL,
 	`refresh_token` varchar(255) NOT NULL,

@@ -5,6 +5,18 @@ export default () => ({
   database: {
     url: process.env.DATABASE_URL,
   },
+  auth: {
+    hashLength: parseInt(process.env.AUTH_HASH_LENGTH || '32'),
+    timeCost: parseInt(process.env.AUTH_HASH_TIME_COST || '6'),
+    memoryCost: parseInt(process.env.AUTH_HASH_MEMORY_COST || '65536'),
+    jwt: {
+      expirationInterval:
+        Number(process.env.AUTH_JWT_EXPIRATION_INTERVAL) || 3600,
+      secret: process.env.AUTH_JWT_SECRET || '',
+      audience: process.env.AUTH_JWT_AUDIENCE || '',
+      issuer: process.env.AUTH_JWT_ISSUER || '',
+    },
+  },
   strava: {
     clientId: process.env.STRAVA_CLIENT_ID,
     clientSecret: process.env.STRAVA_CLIENT_SECRET,
@@ -17,11 +29,26 @@ export interface ServerConfig {
   port: number;
   frontendUrl: string;
   database: DatabaseConfig;
+  auth: AuthConfig;
   strava: StravaConfig;
 }
 
 export interface DatabaseConfig {
   url: string;
+}
+
+export interface JwtConfig {
+  expirationInterval: number;
+  secret: string;
+  audience: string;
+  issuer: string;
+}
+
+export interface AuthConfig {
+  hashLength: number;
+  timeCost: number;
+  memoryCost: number;
+  jwt: JwtConfig;
 }
 
 export interface StravaConfig {

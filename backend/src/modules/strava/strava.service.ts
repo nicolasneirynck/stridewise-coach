@@ -4,6 +4,13 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { AuthConfig } from '../../config/configuration';
+import {
+  type DatabaseProvider,
+  InjectDrizzle,
+} from '../../database/drizzle.provider';
+import { strava_connections } from '../../database/schema';
+import { sql } from 'drizzle-orm';
 
 interface StravaAthlete {
   id: number;
@@ -23,9 +30,12 @@ interface StravaTokenResponse {
 
 @Injectable()
 export class StravaService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectDrizzle() private readonly db: DatabaseProvider,
+  ) {}
 
-  getAuthorizationUrl(): string {
+  getAuthorizationUrl(userId: number): string {
     //  where user goes to Strava
     const clientId = this.configService.getOrThrow<string>('strava.clientId');
     const redirectUri =
@@ -37,6 +47,7 @@ export class StravaService {
       response_type: 'code', // tells Strava I want an authorization code, that code will later be exchanged for tokens
       approval_prompt: 'auto', // tells Strava to avoid asking for approval again if possible
       scope: 'read,activity:read_all', // defines what permissions I request, read all means basic read access plus activity access
+      state: this.createOAuthState(userId),
     });
 
     return `https://www.strava.com/oauth/authorize?${params.toString()}`;
@@ -73,6 +84,59 @@ export class StravaService {
     }
 
     return (await response.json()) as StravaTokenResponse;
+  }
+
+  async saveConnection(
+    userId: number,
+    tokenResponse: StravaTokenResponse,
+  ): Promise<void> {
+    await this.db
+      .insert(strava_connections)
+      .values({
+        user_id: userId,
+        strava_athlete_id: tokenResponse.athlete.id,
+        access_token: tokenResponse.access_token,
+        refresh_token: tokenResponse.refresh_token,
+        expires_at: tokenResponse.expires_at,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          strava_athlete_id: tokenResponse.athlete.id,
+          access_token: tokenResponse.access_token,
+          refresh_token: tokenResponse.refresh_token,
+          expires_at: tokenResponse.expires_at,
+          updated_at: sql`CURRENT_TIMESTAMP`,
+        },
+      });
+  }
+
+  createOAuthState(userId: number): string {
+    const authConfig = this.configService.getOrThrow<AuthConfig>('auth');
+    return Buffer.from(`${userId}:${authConfig.jwt.secret}`).toString(
+      'base64url',
+    );
+  }
+
+  getUserIdFromOAuthState(state?: string): number {
+    if (!state) {
+      throw new BadRequestException('Missing Strava OAuth state');
+    }
+
+    const authConfig = this.configService.getOrThrow<AuthConfig>('auth');
+    const decodedState = Buffer.from(state, 'base64url').toString('utf8');
+    const [userId, secret] = decodedState.split(':');
+
+    if (!userId || secret !== authConfig.jwt.secret) {
+      throw new BadRequestException('Invalid Strava OAuth state');
+    }
+
+    const parsedUserId = Number(userId);
+
+    if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+      throw new BadRequestException('Invalid Strava OAuth state');
+    }
+
+    return parsedUserId;
   }
 
   getFrontendCallbackUrl(

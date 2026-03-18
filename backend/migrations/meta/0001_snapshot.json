@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "606afcd7-21d5-4bee-ac3e-894605752a15",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "32523187-457f-4120-a605-660328ab9437",
+  "prevId": "606afcd7-21d5-4bee-ac3e-894605752a15",
   "tables": {
     "strava_connections": {
       "name": "strava_connections",
@@ -135,6 +135,13 @@
         "email": {
           "name": "email",
           "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "roles": {
+          "name": "roles",
+          "type": "json",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

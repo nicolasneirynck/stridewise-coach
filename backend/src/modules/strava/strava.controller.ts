@@ -1,5 +1,8 @@
 import { Controller, Get, Query, Redirect } from '@nestjs/common';
+import { Public } from '../auth/decorators/public.decorator';
 import { StravaService } from './strava.service';
+import { CurrentUser } from '../auth/decorators/currentUser.decorator';
+import type { Session } from '../../common/types/auth';
 
 @Controller('strava')
 export class StravaController {
@@ -7,14 +10,16 @@ export class StravaController {
 
   @Get('connect')
   @Redirect()
-  connect() {
-    return { url: this.stravaService.getAuthorizationUrl() };
+  connect(@CurrentUser() user: Session) {
+    return { url: this.stravaService.getAuthorizationUrl(user.id) };
   }
 
+  @Public()
   @Get('callback') // endpoint that Strava calls after the user clicks Approve or Cancel on the Strava website
   @Redirect()
   async handleCallback(
     @Query('code') code?: string, // read the code value from the URL query string + assign it to the variable code
+    @Query('state') state?: string,
     @Query('scope') _scope?: string,
     @Query('error') error?: string,
   ) {
@@ -35,13 +40,13 @@ export class StravaController {
     }
 
     try {
+      const userId = this.stravaService.getUserIdFromOAuthState(state);
       const tokenResponse = await this.stravaService.exchangeCodeForToken(code);
+      await this.stravaService.saveConnection(userId, tokenResponse);
 
-      // Temporary until user auth is ready:
-      // 1. save tokens in strava_connections
-      // 2. link to the current user
       return {
         url: this.stravaService.getFrontendCallbackUrl('success', {
+          userId: String(userId),
           athleteId: String(tokenResponse.athlete.id),
         }),
       };

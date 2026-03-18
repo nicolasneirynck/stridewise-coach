@@ -6,7 +6,12 @@ import { ConfigModule } from '@nestjs/config';
 import { DrizzleModule } from './database/drizzle.module';
 import configuration from './config/configuration';
 import { StravaModule } from './modules/strava/strava.module';
-
+import { AuthModule } from './modules/auth/auth.module';
+import { UserModule } from './modules/users/users.module';
+import { SessionModule } from './modules/session/sessions.module';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthGuard } from './modules/auth/guards/auth.guard';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,13 +49,36 @@ import { StravaModule } from './modules/strava/strava.module';
           }
         }
 
+        if (!env.AUTH_JWT_SECRET) {
+          throw new Error('AUTH_JWT_SECRET is required');
+        }
+        if (!env.AUTH_JWT_AUDIENCE) {
+          throw new Error('AUTH_JWT_AUDIENCE is required');
+        }
+        if (!env.AUTH_JWT_ISSUER) {
+          throw new Error('AUTH_JWT_ISSUER is required');
+        }
+
         return env;
       },
     }),
     DrizzleModule,
+    AuthModule,
+    SessionModule,
+    UserModule,
     StravaModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard, // We registreren de AuthGuard en de RolesGuard globaal. Hierdoor worden deze guard automatisch op alle routes toegepast.
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}

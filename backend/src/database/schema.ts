@@ -4,6 +4,7 @@ import {
   varchar,
   uniqueIndex,
   timestamp,
+  json,
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
@@ -15,6 +16,7 @@ export const users = mysqlTable(
     firstName: varchar('first_name', { length: 255 }).notNull(),
     lastName: varchar('last_name', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }).notNull(),
+    roles: json('roles').notNull(),
   },
   (table) => [uniqueIndex('idx_user_email_unique').on(table.email)],
 );
@@ -23,7 +25,7 @@ export const strava_connections = mysqlTable(
   'strava_connections',
   {
     id: int('id', { unsigned: true }).primaryKey().autoincrement(),
-    user_id: int('user_id')
+    user_id: int('user_id', { unsigned: true })
       .notNull()
       .references(() => users.id),
     strava_athlete_id: int('strava_athlete_id').notNull(),
