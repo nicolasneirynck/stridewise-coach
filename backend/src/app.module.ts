@@ -8,7 +8,7 @@ import configuration from './config/configuration';
 import { StravaModule } from './modules/strava/strava.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/users/users.module';
-import { SessionModule } from './modules/session/sessions.module';
+import { SessionModule } from './modules/sessions/sessions.module';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './modules/auth/guards/auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';

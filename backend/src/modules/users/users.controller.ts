@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { UserService } from './users.service';
 import { PublicUserResponseDTO, RegisterUserRequestDTO } from './users.dto';
-import { LoginResponseDTO } from '../session/sessions.dto';
+import { LoginResponseDTO } from '../sessions/sessions.dto';
 import { AuthService } from '../auth/auth.service';
-import { CheckUserAccessGuard } from '../auth/guards/userAcces.guard';
+import { CheckUserAccessGuard } from '../auth/guards/user-access.guard';
 import type { Session } from '../../common/types/auth';
-import { CurrentUser } from '../auth/decorators/currentUser.decorator';
-import { ParseUserIdPipe } from '../auth/pipes/parseUserIdPipe.pipe';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ParseUserIdPipe } from '../auth/pipes/parse-user-id.pipe';
 
 @Controller('users')
 export class UserController {
@@ -17,7 +17,7 @@ export class UserController {
 
   @Get(':id')
   @UseGuards(CheckUserAccessGuard)
-  getUserById(
+  async getUserById(
     @Param('id', ParseUserIdPipe) id: 'me' | number,
     @CurrentUser() user: Session,
   ): Promise<PublicUserResponseDTO> {

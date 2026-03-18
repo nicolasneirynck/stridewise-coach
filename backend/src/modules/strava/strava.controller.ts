@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Redirect } from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
 import { StravaService } from './strava.service';
-import { CurrentUser } from '../auth/decorators/currentUser.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { Session } from '../../common/types/auth';
 
 @Controller('strava')

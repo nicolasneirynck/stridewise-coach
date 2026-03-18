@@ -13,8 +13,8 @@ export default () => ({
       expirationInterval:
         Number(process.env.AUTH_JWT_EXPIRATION_INTERVAL) || 3600,
       secret: process.env.AUTH_JWT_SECRET || '',
-      audience: process.env.AUTH_JWT_AUDIENCE || '',
-      issuer: process.env.AUTH_JWT_ISSUER || '',
+      audience: process.env.AUTH_JWT_AUDIENCE || 'stridewise-users',
+      issuer: process.env.AUTH_JWT_ISSUER || 'stridewise-api',
     },
   },
   strava: {
@@ -49,6 +49,7 @@ export interface AuthConfig {
   timeCost: number;
   memoryCost: number;
   jwt: JwtConfig;
+  maxDelay: number;
 }
 
 export interface StravaConfig {

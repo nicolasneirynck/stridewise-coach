@@ -19,13 +19,11 @@ export class RolesGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // Als er geen rollen vereist zijn, laten we het request door.
     if (!requiredRoles) {
       return true;
     }
 
     const request = context.switchToHttp().getRequest();
-
     // We controleren of de gebruiker is aangemeld.
     if (!request.user) {
       throw new UnauthorizedException('You need to be signed in');

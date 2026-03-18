@@ -18,18 +18,15 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // We controleren of de route publiek is. Als dat zo is, laten we het request door.
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
+      context.getHandler(), // does this route if not, does the controller class have it?
+      context.getClass(), // if not, does the controller class have it?
     ]);
     if (isPublic) {
       return true;
     }
 
     // We halen de JWT uit de Authorization header en controleren of deze bestaat.
-    // We gebruiken hiervoor de helper functie extractTokenFromHeader.
-    // Deze haalt de token uit de header en controleert of de prefix Bearer is.
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
     if (!token) {
@@ -51,12 +48,9 @@ export class AuthGuard implements CanActivate {
       }
       throw new UnauthorizedException('Invalid authentication token');
     }
-    return true; // Als alles goed is, laten we het request door
+    return true;
   }
 
-  // We halen de JWT uit de Authorization header en controleren of deze bestaat.
-  // Als er geen token is, gooien we een UnauthorizedException.
-  // We gebruiken hiervoor de helper functie extractTokenFromHeader.
   // Deze haalt de token uit de header en controleert of de prefix Bearer is.
   private extractTokenFromHeader(request: Request): string | undefined {
     const [type, token] = request.headers.authorization?.split(' ') ?? [];

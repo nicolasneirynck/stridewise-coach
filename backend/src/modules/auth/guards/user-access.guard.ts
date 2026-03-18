@@ -17,8 +17,8 @@ export class CheckUserAccessGuard implements CanActivate {
       throw new UnauthorizedException('You need to be signed in');
     }
 
-    const { id: userId, roles } = request.user;
-    const id = request.params.id;
+    const { id: userId, roles } = request.user; // who is logged in
+    const id = request.params.id; // which user is being requested in the URL
 
     // We controleren of de gebruiker toegang heeft tot de gevraagde gebruiker
     /*

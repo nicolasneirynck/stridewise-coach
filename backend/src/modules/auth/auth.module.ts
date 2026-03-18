@@ -7,22 +7,30 @@ import { ServerConfig, AuthConfig } from '../../config/configuration';
 
 @Module({
   imports: [
-    // We importeren de JwtModule en configureren deze asynchroon met onze AuthConfig.
+    // This code configures the NestJS JwtModule so your app knows how JWTs should be signed.
+    /*
+        the app uses JwtService (auth.service -> signJtw)
+        JwtService needs configuration
+        this block provides that configuration from the env/config system
+
+      registerAsync:
+        register the JWT module
+        but configure it dynamically at runtime
+        using values from ConfigService
+     */
     JwtModule.registerAsync({
       inject: [ConfigService], // We injecteren de ConfigService om de configuratie op te halen.
       global: true, // We maken de module ook global zodat we deze niet in andere modules moeten importeren.
+
+      /* build the JWT config object now using ConfigService */
       useFactory: (configService: ConfigService<ServerConfig>) => {
         const authConfig = configService.get<AuthConfig>('auth')!; // We halen onze authenticatie configuratie op.
-
-        // We geven de nodige opties mee aan de JwtModule, opgehaald uit onze configuratie:
-        //    - secret: het geheim waarmee de JWT ondertekend wordt
-        //    - signOptions: opties voor het ondertekenen van de JWT, zoals vervaldatum, audience en issuer
         return {
-          secret: authConfig.jwt.secret,
+          secret: authConfig.jwt.secret, // secret key used to sign the token
           signOptions: {
             expiresIn: `${authConfig.jwt.expirationInterval}s`,
-            audience: authConfig.jwt.audience,
-            issuer: authConfig.jwt.issuer,
+            audience: authConfig.jwt.audience, //who is the token intended for (stridewise-users)
+            issuer: authConfig.jwt.issuer, // who created the token (stridewise-api)
           },
         };
       },
