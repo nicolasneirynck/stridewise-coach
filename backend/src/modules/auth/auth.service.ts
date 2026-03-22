@@ -19,9 +19,8 @@ import { Role } from './roles';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectDrizzle()
     private readonly configService: ConfigService<ServerConfig>,
-    private readonly db: DatabaseProvider,
+    @InjectDrizzle() private readonly db: DatabaseProvider,
     private readonly jwtService: JwtService,
   ) {}
 

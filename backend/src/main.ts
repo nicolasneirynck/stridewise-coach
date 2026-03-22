@@ -13,8 +13,13 @@ async function bootstrap() {
 
   const config = app.get(ConfigService<ServerConfig>);
   const port = config.get<number>('port')!;
+  const frontendUrl = config.get<string>('frontendUrl')!;
 
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: [frontendUrl],
+    maxAge: 3 * 60 * 60, // de maximale tijd die een browser nodig heeft om de preflight OPTIONS-aanvraag in de cache op te nemen (hier 3u), zodat niet bij elk verzoek opnieuw toestemming gevraagd hoeft te worden.
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

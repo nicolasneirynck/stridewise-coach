@@ -3,14 +3,14 @@ import { Public } from '../auth/decorators/public.decorator';
 import { StravaService } from './strava.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { Session } from '../../common/types/auth';
+import { StravaActivityResponseDTO } from './strava.dto';
 
 @Controller('strava')
 export class StravaController {
   constructor(private readonly stravaService: StravaService) {}
 
-  @Get('connect')
-  @Redirect()
-  connect(@CurrentUser() user: Session) {
+  @Get('connect-url')
+  getConnectUrl(@CurrentUser() user: Session) {
     return { url: this.stravaService.getAuthorizationUrl(user.id) };
   }
 
@@ -57,5 +57,12 @@ export class StravaController {
         }),
       };
     }
+  }
+
+  @Get('activities')
+  async getActivitiesForCurrentUser(
+    @CurrentUser() user: Session,
+  ): Promise<StravaActivityResponseDTO[]> {
+    return this.stravaService.getActivitiesForUser(user.id);
   }
 }
