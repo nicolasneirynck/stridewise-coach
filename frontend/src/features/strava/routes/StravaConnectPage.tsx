@@ -4,6 +4,7 @@ import useSWRMutation from 'swr/mutation'
 import { requestStravaConnectUrl, requestStravaActivities } from '../api/strava'
 import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
+import { StravaActivitiesList } from '../components/StravaActivitiesList'
 import AsyncData from '../../../components/ui/AsyncData'
 
 export function StravaConnectPage() {
@@ -30,26 +31,30 @@ export function StravaConnectPage() {
       : null
 
   const {
-    trigger,
-    isMutating,
-    error,
+    trigger: triggerStravaConnect,
+    isMutating: isConnectingStrava,
+    error: connectError,
   } = useSWRMutation('strava/connect-url', requestStravaConnectUrl)
 
   const {
     data: activities,
-    isLoading,
+    isLoading: activitiesLoading,
     error: activitiesError,
   } = useSWR(isConnected ? 'strava/activities' : null, requestStravaActivities)
 
   const totalActivities = activities?.length ?? 0
   const totalDistanceMeters = activities?.reduce((total, activity) => total + activity.distanceMeters, 0) ?? 0
+  const latestActivity = 
+    activities && activities.length > 0 
+      ? Math.max(...activities.map((activity) => Date.parse(activity.startDate)))
+      : null
 
-  const pageError = error ?? callbackError ?? activitiesError
-  const showConnectionSummary = isConnected && Boolean(athleteId)
+  const connectionError = connectError ?? callbackError
+  const connectedAthleteId = isConnected && athleteId ? athleteId : null
 
   const handleConnectClick = async () => {
     try {
-      const connectUrl = await trigger()
+      const connectUrl = await triggerStravaConnect()
 
       if (typeof connectUrl !== 'string' || connectUrl.trim().length === 0) {
         throw new Error('Missing Strava connect URL')
@@ -67,6 +72,28 @@ export function StravaConnectPage() {
     }
   }
 
+  function renderActivitiesStatus(message:string){
+    return (
+    <section aria-labelledby="strava-activities-heading" className='rounded-3xl border border-stone-200 bg-white p-8 shadow-sm'>
+      <header className="mb-4">
+        <h2 id="strava-activities-heading" className="text-2xl font-semibold tracking-tight text-zinc-950">
+           Recent activities
+        </h2>
+        <p className="mt-2 text-sm text-zinc-600">
+          {message}
+        </p>
+      </header>
+    </section>)
+  }
+
+  const activitiesSection = activitiesLoading
+    ? renderActivitiesStatus('Loading your recent Strava activities.')
+    : activitiesError
+      ? renderActivitiesStatus(
+          'We couldn’t load your recent Strava activities right now. Please try refreshing the page in a moment.',
+        )
+      : <StravaActivitiesList activities={activities ?? []} />
+
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
       <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
@@ -81,20 +108,22 @@ export function StravaConnectPage() {
         Link Strava so your activities can be imported into StrideWise.
       </p>
 
-      <StravaConnectCard loading={isMutating} onConnect={handleConnectClick} />
+      <StravaConnectCard loading={isConnectingStrava} onConnect={handleConnectClick} />
 
       <div className="mt-4">
-        <AsyncData
-          loading={isLoading}
-          error={pageError}>
-          {showConnectionSummary ? (
-            <StravaConnectionSummary
-              athleteId={athleteId!}
-              totalActivities={totalActivities}
-              totalDistanceMeters={totalDistanceMeters}
-            />
+        <AsyncData loading={false} error={connectionError}>
+          {connectedAthleteId ? (
+            <div className='flex flex-col gap-6'>
+              <StravaConnectionSummary
+                athleteId={connectedAthleteId}
+                totalActivities={totalActivities}
+                totalDistanceMeters={totalDistanceMeters}
+                latestActivityDate={latestActivity}
+              />  
+              {activitiesSection}
+            </div>
           ) : null}
-        </AsyncData>
+        </AsyncData>  
       </div>
 
     </section>
