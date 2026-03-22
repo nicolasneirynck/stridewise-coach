@@ -2,7 +2,7 @@ import * as argon2 from 'argon2';
 import { drizzle } from 'drizzle-orm/mysql2';
 import * as mysql from 'mysql2/promise';
 import { users } from './schema';
-import { Role } from '../modules/auth/roles';
+import { Role } from '../common/constans/roles';
 
 async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, {

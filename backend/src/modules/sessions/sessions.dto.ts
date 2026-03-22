@@ -8,7 +8,3 @@ export class LoginRequestDTO {
   @IsString()
   password: string;
 }
-
-export class LoginResponseDTO {
-  token: string;
-}

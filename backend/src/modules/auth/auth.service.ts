@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  UnauthorizedException,
+  Injectable,
+} from '@nestjs/common';
 import * as argon2 from 'argon2';
 import {
   type DatabaseProvider,
@@ -7,15 +11,15 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ServerConfig, AuthConfig } from '../../config/configuration';
-import { User } from '../../common/types/user';
-import { JwtPayload } from '../../common/types/auth';
-import { UnauthorizedException } from '@nestjs/common';
-import { LoginRequestDTO } from '../sessions/sessions.dto';
+import {
+  JwtPayload,
+  JwtIdentity,
+  LoginInput,
+  RegisterInput,
+} from '../../common/types/auth';
 import { eq } from 'drizzle-orm';
 import { users } from '../../database/schema';
-import { RegisterUserRequestDTO } from '../users/users.dto';
-import { Role } from './roles';
-
+import { Role } from '../../common/constans/roles';
 @Injectable()
 export class AuthService {
   constructor(
@@ -24,12 +28,15 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  // public auth flows
+
   async register({
     firstName,
     lastName,
     email,
     password,
-  }: RegisterUserRequestDTO): Promise<string> {
+  }: RegisterInput): Promise<string> {
+    // Check email availability
     const existingEmail = await this.db.query.users.findFirst({
       where: eq(users.email, email),
     });
@@ -38,8 +45,10 @@ export class AuthService {
       throw new BadRequestException('This e-mail adress is already in use');
     }
 
+    // Prepare credentials
     const passwordHash = await this.hashPassword(password);
 
+    // Create the user
     const [newUser] = await this.db
       .insert(users)
       .values({
@@ -49,29 +58,19 @@ export class AuthService {
         email,
         roles: [Role.USER],
       })
-      .$returningId(); // bv [{ id: 5 }]
-    // const [newUser] = result;
-    // newUser = { id: 12 }
+      .$returningId();
 
-    const user = await this.db.query.users.findFirst({
-      where: eq(users.id, newUser.id),
-    });
-
-    // We ondertekenen een JWT en geven deze terug.
-    // We weten dat de user bestaat omdat we deze net aangemaakt hebben,
-    // dus we gebruiken de non-null assertion operator !
-    return this.signJwt(user!);
+    // Issue the auth token
+    return this.signJwt({ sub: newUser.id, email, roles: [Role.USER] });
   }
 
-  async login({ email, password }: LoginRequestDTO): Promise<string> {
+  async login({ email, password }: LoginInput): Promise<string> {
     const user = await this.db.query.users.findFirst({
       where: eq(users.email, email),
     });
 
     if (!user) {
-      throw new UnauthorizedException(
-        'The given email and password do not match',
-      );
+      this.throwInvalidCredentials();
     }
 
     const passwordValid = await this.verifyPassword(
@@ -80,15 +79,33 @@ export class AuthService {
     );
 
     if (!passwordValid) {
-      throw new UnauthorizedException(
-        'The given email and password do not match',
-      );
+      this.throwInvalidCredentials();
     }
 
-    return this.signJwt(user);
+    return this.signJwt({ sub: user.id, email: user.email, roles: user.roles });
   }
 
-  async hashPassword(password: string): Promise<string> {
+  // public auth infrastructure
+
+  async verifyJwt(token: string): Promise<JwtPayload> {
+    const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+
+    if (!payload) {
+      throw new UnauthorizedException('Invalid authentication token');
+    }
+
+    return payload;
+  }
+
+  // private implementation details
+
+  private throwInvalidCredentials(): never {
+    throw new UnauthorizedException(
+      'The given email and password do not match',
+    );
+  }
+
+  private async hashPassword(password: string): Promise<string> {
     const authConfig = this.configService.get<AuthConfig>('auth')!; // We vragen de auth configuratie op.
 
     return await argon2.hash(password, {
@@ -99,7 +116,10 @@ export class AuthService {
     });
   }
 
-  async verifyPassword(password: string, hash: string): Promise<boolean> {
+  private async verifyPassword(
+    password: string,
+    hash: string,
+  ): Promise<boolean> {
     return await argon2.verify(hash, password);
   }
 
@@ -107,26 +127,14 @@ export class AuthService {
       - Hiervoor gebruiken we de sub claim voor het gebruikers id. 
         Dit is een standaard claim in JWT's.
       - De overige velden zijn custom claims, die mag je zelf kiezen.
-      - Let wel op: enkel controle op een rol doen in de frontend is niet voldoende. De backend moet altijd controleren of de gebruiker de actie mag uitvoeren.
       
     De nodige opties mee om de JWT te ondertekenen dienen we niet mee te geven, 
     want reeds doorgegeven bij de registratie van de JwtModule. (AuthModule)*/
-  private signJwt(user: User): string {
+  private signJwt({ sub, email, roles }: JwtIdentity): string {
     return this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      roles: user.roles,
+      sub,
+      email,
+      roles,
     });
-  }
-
-  // functie verifieert de JWT en geeft de payload terug
-  async verifyJwt(token: string): Promise<JwtPayload> {
-    const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-
-    if (!payload) {
-      throw new UnauthorizedException('Invalid authentication token');
-    }
-
-    return payload;
   }
 }

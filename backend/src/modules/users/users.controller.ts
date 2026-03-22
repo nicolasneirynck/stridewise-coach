@@ -1,20 +1,32 @@
 import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { UserService } from './users.service';
 import { PublicUserResponseDTO, RegisterUserRequestDTO } from './users.dto';
-import { LoginResponseDTO } from '../sessions/sessions.dto';
 import { AuthService } from '../auth/auth.service';
-import { CheckUserAccessGuard } from '../auth/guards/user-access.guard';
-import type { Session } from '../../common/types/auth';
+import { AuthResponseDTO } from '../auth/auth-response.dto';
+import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CheckUserAccessGuard } from '../auth/guards/user-access.guard';
 import { ParseUserIdPipe } from '../auth/pipes/parse-user-id.pipe';
+import type { Session } from '../../common/types/auth';
 
+// Contains public registration plus authenticated user resource routes.
 @Controller('users')
 export class UserController {
   constructor(
-    private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly userService: UserService,
   ) {}
 
+  // public user registration entrypoint
+  @Public()
+  @Post()
+  async register(
+    @Body() dto: RegisterUserRequestDTO,
+  ): Promise<AuthResponseDTO> {
+    return { token: await this.authService.register(dto) };
+  }
+
+  // authenticated user routes
   @Get(':id')
   @UseGuards(CheckUserAccessGuard)
   async getUserById(
@@ -37,14 +49,6 @@ export class UserController {
   //     dto,
   //   );
   // }
-
-  @Post()
-  async registerUser(
-    @Body() registerDto: RegisterUserRequestDTO,
-  ): Promise<LoginResponseDTO> {
-    const token = await this.authService.register(registerDto);
-    return { token };
-  }
 
   // @Delete(':id')
   // @UseGuards(CheckUserAccessGuard)

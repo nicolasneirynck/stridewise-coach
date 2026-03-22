@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Role } from '../roles';
+import { Role } from '../../../common/constans/roles';
 
 @Injectable()
 export class CheckUserAccessGuard implements CanActivate {

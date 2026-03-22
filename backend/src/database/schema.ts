@@ -7,6 +7,7 @@ import {
   json,
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
+import { Role } from '../common/constans/roles';
 
 export const users = mysqlTable(
   'users',
@@ -16,7 +17,7 @@ export const users = mysqlTable(
     firstName: varchar('first_name', { length: 255 }).notNull(),
     lastName: varchar('last_name', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }).notNull(),
-    roles: json('roles').notNull(),
+    roles: json('roles').$type<Role[]>().notNull(),
   },
   (table) => [uniqueIndex('idx_user_email_unique').on(table.email)],
 );
