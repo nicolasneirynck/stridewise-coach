@@ -1,7 +1,7 @@
 import {
-  BadRequestException,
   UnauthorizedException,
   Injectable,
+  ConflictException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import {
@@ -42,7 +42,7 @@ export class AuthService {
     });
 
     if (existingEmail) {
-      throw new BadRequestException('This e-mail adress is already in use');
+      throw new ConflictException('This e-mail adress is already in use');
     }
 
     // Prepare credentials

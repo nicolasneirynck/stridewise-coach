@@ -21,4 +21,5 @@ export type RegisterInput = {
   email: string;
   password: string;
 };
+
 export type JwtIdentity = { sub: number; email: string; roles: Role[] };

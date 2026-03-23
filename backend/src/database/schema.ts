@@ -23,19 +23,29 @@ export const users = mysqlTable(
   (table) => [uniqueIndex('idx_user_email_unique').on(table.email)],
 );
 
-export const activities = mysqlTable('activities', {
-  id: int('id', { unsigned: true }).primaryKey().autoincrement(),
-  user_id: int('user_id', { unsigned: true })
-    .notNull()
-    .references(() => users.id),
-  activity_name: varchar('activity_name', { length: 255 }).notNull(),
-  activity_time: timestamp('activity_time').defaultNow().notNull(),
-  distance: double('distance').notNull(),
-  source_activity_id: int('source_activity_id'),
-  source: varchar('source', { length: 255 }).notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
+export const activities = mysqlTable(
+  'activities',
+  {
+    id: int('id', { unsigned: true }).primaryKey().autoincrement(),
+    user_id: int('user_id', { unsigned: true })
+      .notNull()
+      .references(() => users.id),
+    activity_name: varchar('activity_name', { length: 255 }).notNull(),
+    start_date: timestamp('start_date').defaultNow().notNull(),
+    distance: double('distance').notNull(),
+    source_activity_id: int('source_activity_id'),
+    source: varchar('source', { length: 255 }).notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_activities_user_source_source_activity_unique').on(
+      table.user_id,
+      table.source,
+      table.source_activity_id,
+    ),
+  ],
+);
 
 export const strava_connections = mysqlTable(
   'strava_connections',

@@ -1,0 +1,2 @@
+ALTER TABLE `activities` RENAME COLUMN `activity_time` TO `start_date`;--> statement-breakpoint
+ALTER TABLE `activities` ADD CONSTRAINT `idx_activities_user_source_source_activity_unique` UNIQUE(`user_id`,`source`,`source_activity_id`);
