@@ -12,6 +12,7 @@ import { SessionModule } from './modules/sessions/sessions.module';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './modules/auth/guards/auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { ActivitiesModule } from './modules/activities/activities.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -66,6 +67,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     AuthModule,
     SessionModule,
     UserModule,
+    ActivitiesModule,
     StravaModule,
   ],
   controllers: [AppController, HealthController],

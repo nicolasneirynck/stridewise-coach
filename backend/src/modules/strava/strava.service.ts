@@ -188,10 +188,13 @@ export class StravaService {
         'Stored Strava connection is invalid/incomplete',
       );
 
-    const response = await fetch('https://www.strava.com/athlete/activities', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${stravaConnection.access_token}` },
-    });
+    const response = await fetch(
+      'https://www.strava.com/api/v3/athlete/activities',
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${stravaConnection.access_token}` },
+      },
+    );
 
     if (!response.ok) {
       const errorBody = await response.text();

@@ -8,6 +8,7 @@ import {
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 import { Role } from '../common/constans/roles';
+import { double } from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable(
   'users',
@@ -21,6 +22,20 @@ export const users = mysqlTable(
   },
   (table) => [uniqueIndex('idx_user_email_unique').on(table.email)],
 );
+
+export const activities = mysqlTable('activities', {
+  id: int('id', { unsigned: true }).primaryKey().autoincrement(),
+  user_id: int('user_id', { unsigned: true })
+    .notNull()
+    .references(() => users.id),
+  activity_name: varchar('activity_name', { length: 255 }).notNull(),
+  activity_time: timestamp('activity_time').defaultNow().notNull(),
+  distance: double('distance').notNull(),
+  source_activity_id: int('source_activity_id'),
+  source: varchar('source', { length: 255 }).notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
 
 export const strava_connections = mysqlTable(
   'strava_connections',
