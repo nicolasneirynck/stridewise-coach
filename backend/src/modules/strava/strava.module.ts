@@ -7,5 +7,6 @@ import { StravaService } from './strava.service';
   imports: [DrizzleModule],
   controllers: [StravaController],
   providers: [StravaService],
+  exports: [StravaService],
 })
 export class StravaModule {}

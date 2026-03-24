@@ -1,4 +1,5 @@
 import {
+  bigint,
   int,
   mysqlTable,
   varchar,
@@ -33,7 +34,10 @@ export const activities = mysqlTable(
     activity_name: varchar('activity_name', { length: 255 }).notNull(),
     start_date: timestamp('start_date').defaultNow().notNull(),
     distance: double('distance').notNull(),
-    source_activity_id: int('source_activity_id'),
+    source_activity_id: bigint('source_activity_id', {
+      mode: 'number',
+      unsigned: true,
+    }),
     source: varchar('source', { length: 255 }).notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
