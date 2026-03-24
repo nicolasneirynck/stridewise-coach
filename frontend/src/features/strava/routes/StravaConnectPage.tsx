@@ -1,11 +1,12 @@
 import { useSearchParams } from 'react-router'
 import useSWR from 'swr'
 import useSWRMutation from 'swr/mutation'
-import { requestStravaConnectUrl, requestStravaActivities } from '../api/strava'
+import { requestStravaConnectUrl, requestStravaActivities, importStravaActivities, type StravaImport} from '../api/strava'
 import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
 import { StravaActivitiesList } from '../components/StravaActivitiesList'
 import AsyncData from '../../../components/ui/AsyncData'
+import { useState } from 'react'
 
 export function StravaConnectPage() {
   const [searchParams] = useSearchParams()
@@ -37,9 +38,18 @@ export function StravaConnectPage() {
   } = useSWRMutation('strava/connect-url', requestStravaConnectUrl)
 
   const {
+    trigger: triggerStravaImport,
+    isMutating: isImportingFromStrava,
+    error: importError,
+  } = useSWRMutation('activities/import-from-strava', importStravaActivities)
+
+  const [importFeedback,setImportFeedback] = useState<StravaImport|null>(null);
+
+  const {
     data: activities,
     isLoading: activitiesLoading,
     error: activitiesError,
+    mutate: refreshActivities
   } = useSWR(isConnected ? 'strava/activities' : null, requestStravaActivities)
 
   const totalActivities = activities?.length ?? 0
@@ -70,6 +80,21 @@ export function StravaConnectPage() {
     } catch {
       // AsyncData will show the mutation error below
     }
+  }
+
+  const handleImportClick = async () => {
+    setImportFeedback(null)
+
+    try{
+      const importedActivities = await triggerStravaImport()
+
+      setImportFeedback(importedActivities)
+      await refreshActivities()
+
+    } catch {
+      // AsyncData will show the mutation error below
+    }
+    
   }
 
   function renderActivitiesStatus(message:string){
@@ -119,7 +144,31 @@ export function StravaConnectPage() {
                 totalActivities={totalActivities}
                 totalDistanceMeters={totalDistanceMeters}
                 latestActivityDate={latestActivity}
+                onImport={handleImportClick}
+                isImporting={isImportingFromStrava}
               />  
+              {importError?
+                <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
+                  <p className="mt-2 text-sm text-zinc-600">
+                    We couldn't import your Strava activities right now.
+                  </p>
+                </div>
+                  : importFeedback? 
+                <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
+                  <p className="mt-2 text-sm text-zinc-600">
+                    {importFeedback.importedCount > 0
+                      ? `Imported ${importFeedback.importedCount} activities from Strava`
+                      : `No new activities imported`}
+                  </p>
+                  <div className='flex flex-col'>
+                    <small className="text-sm text-zinc-600">
+                      Fetched {importFeedback.fetchedCount} activities
+                    </small>
+                    <small className="text-sm text-zinc-600">
+                      Skipped {importFeedback.skippedCount} activities
+                    </small>
+                  </div>
+                </div> : null}
               {activitiesSection}
             </div>
           ) : null}

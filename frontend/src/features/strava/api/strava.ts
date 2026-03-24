@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const connectUrl = 'http://localhost:3000/api/strava/connect-url';
 const activitiesUrl = 'http://localhost:3000/api/strava/activities'
+const importUrl = 'http://localhost:3000/api/activities/import-from-strava'
 const AUTH_TOKEN_STORAGE_KEY = 'stridewise_auth_token'
 
 export type StravaActivity = {
@@ -10,6 +11,12 @@ export type StravaActivity = {
   sportType:string,
   startDate:string,
   distanceMeters:number
+}
+
+export type StravaImport = {
+  fetchedCount: number,
+  importedCount: number,
+  skippedCount: number,
 }
 
 function getAuthToken():string{
@@ -41,6 +48,18 @@ export async function requestStravaActivities():Promise<StravaActivity[]>{
     headers: {
       Authorization: `Bearer ${authToken}`,
     },
+  })
+
+  return response.data
+}
+
+export async function importStravaActivities():Promise<StravaImport>{
+  const authToken = getAuthToken()
+
+  const response = await axios.post<StravaImport>(importUrl,{},{
+    headers: {
+      Authorization: `Bearer ${authToken}`
+    }
   })
 
   return response.data
