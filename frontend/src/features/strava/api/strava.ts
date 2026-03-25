@@ -36,62 +36,91 @@ function getAuthToken():string{
   return authToken
 }
 
+function handleExpiredAuth(error: unknown): never {
+  if (
+    axios.isAxiosError(error) &&
+    error.response?.status === 401 &&
+    error.response.data?.message === 'Token has expired'
+  ) {
+    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+    window.location.assign('/')
+  }
+
+  throw error
+}
+
 export async function requestStravaConnectUrl(): Promise<string>{
   const authToken = getAuthToken()
 
-  const response = await axios.get<{ url: string }>(connectUrl, {
-    headers: {
-      Authorization: `Bearer ${authToken}`,
-    },
-  })
+  try {
+    const response = await axios.get<{ url: string }>(connectUrl, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
 
-  return response.data.url
+    return response.data.url
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
 };
 
 export async function requestStravaConnectionStatus():Promise<StravaConnectionStatus>{
   const authToken = getAuthToken()
 
-  const response = await axios.get<StravaConnectionStatus>(connectionStatusUrl, {
-    headers: {
-      Authorization: `Bearer ${authToken}`,
-    },
-  })
+  try {
+    const response = await axios.get<StravaConnectionStatus>(connectionStatusUrl, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
 
-  return response.data
+    return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
 }
 
 export async function requestStravaActivities():Promise<StravaActivity[]>{
   const authToken = getAuthToken()
 
-  const response = await axios.get<Array<{
-    id: number,
-    name: string,
-    startDate: string,
-    distance: number,
-    source: string,
-  }>>(activitiesUrl,{
-    headers: {
-      Authorization: `Bearer ${authToken}`,
-    },
-  })
+  try {
+    const response = await axios.get<Array<{
+      id: number,
+      name: string,
+      startDate: string,
+      distance: number,
+      source: string,
+    }>>(activitiesUrl,{
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
 
-  return response.data.map((activity) => ({
-    id: String(activity.id),
-    name: activity.name,
-    sportType: activity.source === 'strava' ? 'Strava' : activity.source,
-    startDate: activity.startDate,
-    distanceMeters: activity.distance,
-  }))
+    return response.data.map((activity) => ({
+      id: String(activity.id),
+      name: activity.name,
+      sportType: activity.source === 'strava' ? 'Strava' : activity.source,
+      startDate: activity.startDate,
+      distanceMeters: activity.distance,
+    }))
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
 }
 
 export async function importStravaActivities():Promise<StravaImport>{
   const authToken = getAuthToken()
 
-  const response = await axios.post<StravaImport>(importUrl,{},{
-    headers: {
-      Authorization: `Bearer ${authToken}`
-    }
-  })
+  try {
+    const response = await axios.post<StravaImport>(importUrl,{},{
+      headers: {
+        Authorization: `Bearer ${authToken}`
+      }
+    })
 
-  return response.data
+    return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
 }

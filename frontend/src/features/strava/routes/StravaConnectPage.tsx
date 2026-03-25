@@ -1,12 +1,12 @@
 import { useSearchParams } from 'react-router'
 import useSWR from 'swr'
 import useSWRMutation from 'swr/mutation'
-import { requestStravaConnectUrl, requestStravaActivities, importStravaActivities, type StravaImport, requestStravaConnectionStatus} from '../api/strava'
+import { requestStravaConnectUrl, requestStravaConnectionStatus} from '../api/strava'
 import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
-import { StravaActivitiesList } from '../components/StravaActivitiesList'
 import AsyncData from '../../../components/ui/AsyncData'
-import { useEffect, useState } from 'react'
+import { useStravaImport } from '../hooks/useStravaImport'
+import { useAutoStravaImport } from '../hooks/useAutoStravaImport'
 
 export function StravaConnectPage() {
   const [searchParams] = useSearchParams() // still necesarry?
@@ -42,35 +42,13 @@ export function StravaConnectPage() {
     error: connectError,
   } = useSWRMutation('strava/connect-url', requestStravaConnectUrl)
 
-  const {
-    trigger: triggerStravaImport,
-    isMutating: isImportingFromStrava,
-    error: importError,
-  } = useSWRMutation('activities/import-from-strava', importStravaActivities)
-
-  const [importFeedback,setImportFeedback] = useState<StravaImport|null>(null);
-  const [autoImportAttempted,setAutoImportAttempted] = useState<boolean>(false)
-
-  const shouldLoadActivities = !connectionStatusLoading && isConnected
-
-  const {
-    data: activities,
-    isLoading: activitiesLoading,
-    error: activitiesError,
-    mutate: refreshActivities
-  } = useSWR(shouldLoadActivities ? 'strava/activities' : null, requestStravaActivities)
-
-  const totalActivities = activities?.length ?? 0
-  const totalDistanceMeters = activities?.reduce((total, activity) => total + activity.distanceMeters, 0) ?? 0
-  const latestActivity = 
-    activities && activities.length > 0 
-      ? Math.max(...activities.map((activity) => Date.parse(activity.startDate)))
-      : null
+  const {handleImport,isImportingFromStrava,importError,importFeedback} = useStravaImport()
 
   const connectionError = connectionStatusError ?? connectError ?? callbackError
   const connectedAthleteId = isConnected && connectionStatus?.athleteId ? String(connectionStatus.athleteId) : null
 
-  const shouldAutomaticallyImport = isConnected && !connectionStatusLoading && !connectionStatusError
+  const shouldAutoImportOnPageLoad = isConnected && !connectionStatusLoading && !connectionStatusError
+  useAutoStravaImport(shouldAutoImportOnPageLoad, handleImport)
 
   const handleConnectClick = async () => {
     try {
@@ -91,51 +69,6 @@ export function StravaConnectPage() {
       // AsyncData will show the mutation error below
     }
   }
-
-  const handleImportClick = async () => {
-    setImportFeedback(null)
-
-    try{
-      const importedActivities = await triggerStravaImport()
-
-      setImportFeedback(importedActivities)
-      await refreshActivities()
-
-    } catch {
-      // AsyncData will show the mutation error below
-    }
-    
-  }
-
-  useEffect(() => {
-    if(autoImportAttempted || !shouldAutomaticallyImport)
-      return
-
-    setAutoImportAttempted(true)
-    handleImportClick()
-  }, [autoImportAttempted,shouldAutomaticallyImport,handleImportClick]);
-
-  function renderActivitiesStatus(message:string){
-    return (
-    <section aria-labelledby="strava-activities-heading" className='rounded-3xl border border-stone-200 bg-white p-8 shadow-sm'>
-      <header className="mb-4">
-        <h2 id="strava-activities-heading" className="text-2xl font-semibold tracking-tight text-zinc-950">
-           Recent activities
-        </h2>
-        <p className="mt-2 text-sm text-zinc-600">
-          {message}
-        </p>
-      </header>
-    </section>)
-  }
-
-  const activitiesSection = activitiesLoading
-    ? renderActivitiesStatus('Loading your recent Strava activities.')
-    : activitiesError
-      ? renderActivitiesStatus(
-          'We couldn’t load your recent Strava activities right now. Please try refreshing the page in a moment.',
-        )
-      : <StravaActivitiesList activities={activities ?? []} />
 
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
@@ -159,10 +92,7 @@ export function StravaConnectPage() {
             <div className='flex flex-col gap-6'>
               <StravaConnectionSummary
                 athleteId={connectedAthleteId}
-                totalActivities={totalActivities}
-                totalDistanceMeters={totalDistanceMeters}
-                latestActivityDate={latestActivity}
-                onImport={handleImportClick}
+                onImport={handleImport}
                 isImporting={isImportingFromStrava}
               />  
               {importError?
@@ -187,11 +117,8 @@ export function StravaConnectPage() {
                     </small>
                   </div>
                 </div> : null}
-              {activitiesSection}
             </div>
-          ) : connectionStatusLoading
-              ? renderActivitiesStatus("Checking your Strava connection.")
-              : renderActivitiesStatus("You are not connected to Strava yet.")}
+          ) : null}
         </AsyncData>  
       </div>
 
