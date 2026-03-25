@@ -5,7 +5,7 @@ import {
 } from '../../database/drizzle.provider';
 import { activities } from '../../database/schema';
 import type { Session } from '../../common/types/auth';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import {
   ActivityResponseDTO,
   ImportStravaActivitiesResponseDTO,
@@ -50,7 +50,14 @@ export class ActivitiesService {
     );
 
     if (newActivityRecords.length > 0) {
-      await this.db.insert(activities).values(newActivityRecords);
+      await this.db
+        .insert(activities)
+        .values(newActivityRecords)
+        .onDuplicateKeyUpdate({
+          set: {
+            updated_at: sql`CURRENT_TIMESTAMP`,
+          },
+        });
     }
 
     return {

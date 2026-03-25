@@ -231,7 +231,6 @@ export class StravaService {
     await this.db
       .update(strava_connections)
       .set({
-        strava_athlete_id: stravaTokenResponse.athlete.id,
         access_token: stravaTokenResponse.access_token,
         refresh_token: stravaTokenResponse.refresh_token,
         expires_at: stravaTokenResponse.expires_at,
