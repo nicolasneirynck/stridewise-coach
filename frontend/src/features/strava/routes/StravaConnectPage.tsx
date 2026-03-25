@@ -6,7 +6,7 @@ import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
 import { StravaActivitiesList } from '../components/StravaActivitiesList'
 import AsyncData from '../../../components/ui/AsyncData'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function StravaConnectPage() {
   const [searchParams] = useSearchParams() // still necesarry?
@@ -49,6 +49,7 @@ export function StravaConnectPage() {
   } = useSWRMutation('activities/import-from-strava', importStravaActivities)
 
   const [importFeedback,setImportFeedback] = useState<StravaImport|null>(null);
+  const [autoImportAttempted,setAutoImportAttempted] = useState<boolean>(false)
 
   const shouldLoadActivities = !connectionStatusLoading && isConnected
 
@@ -68,6 +69,8 @@ export function StravaConnectPage() {
 
   const connectionError = connectionStatusError ?? connectError ?? callbackError
   const connectedAthleteId = isConnected && connectionStatus?.athleteId ? String(connectionStatus.athleteId) : null
+
+  const shouldAutomaticallyImport = isConnected && !connectionStatusLoading && !connectionStatusError
 
   const handleConnectClick = async () => {
     try {
@@ -103,6 +106,14 @@ export function StravaConnectPage() {
     }
     
   }
+
+  useEffect(() => {
+    if(autoImportAttempted || !shouldAutomaticallyImport)
+      return
+
+    setAutoImportAttempted(true)
+    handleImportClick()
+  }, [autoImportAttempted,shouldAutomaticallyImport,handleImportClick]);
 
   function renderActivitiesStatus(message:string){
     return (
