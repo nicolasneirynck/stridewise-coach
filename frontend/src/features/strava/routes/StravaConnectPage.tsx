@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router'
 import useSWR from 'swr'
 import useSWRMutation from 'swr/mutation'
-import { requestStravaConnectUrl, requestStravaActivities, importStravaActivities, type StravaImport} from '../api/strava'
+import { requestStravaConnectUrl, requestStravaActivities, importStravaActivities, type StravaImport, requestStravaConnectionStatus} from '../api/strava'
 import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
 import { StravaActivitiesList } from '../components/StravaActivitiesList'
@@ -9,12 +9,17 @@ import AsyncData from '../../../components/ui/AsyncData'
 import { useState } from 'react'
 
 export function StravaConnectPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams] = useSearchParams() // still necesarry?
+
+  const {
+    data: connectionStatus,
+    isLoading: connectionStatusLoading,
+    error: connectionStatusError
+  } = useSWR('strava/connection-status', requestStravaConnectionStatus)
 
   const status = searchParams.get('status')
-  const athleteId = searchParams.get('athleteId')
   const reason = searchParams.get('reason')
-  const isConnected = status === 'success'
+  const isConnected = connectionStatus ? connectionStatus.isConnected : false
 
   // Callback errors happen after Strava redirects back.
   // Mutation errors happen while starting the connection from this page.
@@ -45,12 +50,14 @@ export function StravaConnectPage() {
 
   const [importFeedback,setImportFeedback] = useState<StravaImport|null>(null);
 
+  const shouldLoadActivities = !connectionStatusLoading && isConnected
+
   const {
     data: activities,
     isLoading: activitiesLoading,
     error: activitiesError,
     mutate: refreshActivities
-  } = useSWR(isConnected ? 'strava/activities' : null, requestStravaActivities)
+  } = useSWR(shouldLoadActivities ? 'strava/activities' : null, requestStravaActivities)
 
   const totalActivities = activities?.length ?? 0
   const totalDistanceMeters = activities?.reduce((total, activity) => total + activity.distanceMeters, 0) ?? 0
@@ -59,8 +66,8 @@ export function StravaConnectPage() {
       ? Math.max(...activities.map((activity) => Date.parse(activity.startDate)))
       : null
 
-  const connectionError = connectError ?? callbackError
-  const connectedAthleteId = isConnected && athleteId ? athleteId : null
+  const connectionError = connectionStatusError ?? connectError ?? callbackError
+  const connectedAthleteId = isConnected && connectionStatus?.athleteId ? String(connectionStatus.athleteId) : null
 
   const handleConnectClick = async () => {
     try {
@@ -137,7 +144,7 @@ export function StravaConnectPage() {
 
       <div className="mt-4">
         <AsyncData loading={false} error={connectionError}>
-          {connectedAthleteId ? (
+          {isConnected ? (
             <div className='flex flex-col gap-6'>
               <StravaConnectionSummary
                 athleteId={connectedAthleteId}
@@ -171,7 +178,9 @@ export function StravaConnectPage() {
                 </div> : null}
               {activitiesSection}
             </div>
-          ) : null}
+          ) : connectionStatusLoading
+              ? renderActivitiesStatus("Checking your Strava connection.")
+              : renderActivitiesStatus("You are not connected to Strava yet.")}
         </AsyncData>  
       </div>
 

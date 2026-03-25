@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const connectUrl = 'http://localhost:3000/api/strava/connect-url';
-const activitiesUrl = 'http://localhost:3000/api/strava/activities'
-const importUrl = 'http://localhost:3000/api/activities/import-from-strava'
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
+const connectUrl = `${API_BASE_URL}/strava/connect-url`;
+const connectionStatusUrl = `${API_BASE_URL}/strava/connection-status`
+const activitiesUrl = `${API_BASE_URL}/activities`
+const importUrl = `${API_BASE_URL}/activities/import-from-strava`
 const AUTH_TOKEN_STORAGE_KEY = 'stridewise_auth_token'
 
 export type StravaActivity = {
@@ -17,6 +19,11 @@ export type StravaImport = {
   fetchedCount: number,
   importedCount: number,
   skippedCount: number,
+}
+
+export type StravaConnectionStatus ={
+  athleteId: number | null,
+  isConnected: boolean
 }
 
 function getAuthToken():string{
@@ -41,16 +48,40 @@ export async function requestStravaConnectUrl(): Promise<string>{
   return response.data.url
 };
 
-export async function requestStravaActivities():Promise<StravaActivity[]>{
+export async function requestStravaConnectionStatus():Promise<StravaConnectionStatus>{
   const authToken = getAuthToken()
 
-  const response = await axios.get<StravaActivity[]>(activitiesUrl,{
+  const response = await axios.get<StravaConnectionStatus>(connectionStatusUrl, {
     headers: {
       Authorization: `Bearer ${authToken}`,
     },
   })
 
   return response.data
+}
+
+export async function requestStravaActivities():Promise<StravaActivity[]>{
+  const authToken = getAuthToken()
+
+  const response = await axios.get<Array<{
+    id: number,
+    name: string,
+    startDate: string,
+    distance: number,
+    source: string,
+  }>>(activitiesUrl,{
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+  })
+
+  return response.data.map((activity) => ({
+    id: String(activity.id),
+    name: activity.name,
+    sportType: activity.source === 'strava' ? 'Strava' : activity.source,
+    startDate: activity.startDate,
+    distanceMeters: activity.distance,
+  }))
 }
 
 export async function importStravaActivities():Promise<StravaImport>{

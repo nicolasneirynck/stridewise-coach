@@ -1,5 +1,5 @@
 interface StravaConnectionSummaryProps {
-  athleteId: string
+  athleteId: string | null
   totalActivities: number
   totalDistanceMeters: number
   latestActivityDate: number | null
