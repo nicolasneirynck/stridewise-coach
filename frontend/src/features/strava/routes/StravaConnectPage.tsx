@@ -6,7 +6,6 @@ import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
 import AsyncData from '../../../components/ui/AsyncData'
 import { useStravaImport } from '../hooks/useStravaImport'
-import { useAutoStravaImport } from '../hooks/useAutoStravaImport'
 
 export function StravaConnectPage() {
   const [searchParams] = useSearchParams() // still necesarry?
@@ -17,14 +16,12 @@ export function StravaConnectPage() {
     error: connectionStatusError
   } = useSWR('strava/connection-status', requestStravaConnectionStatus)
 
-  const status = searchParams.get('status')
   const reason = searchParams.get('reason')
   const isConnected = connectionStatus ? connectionStatus.isConnected : false
 
   // Callback errors happen after Strava redirects back.
   // Mutation errors happen while starting the connection from this page.
-  const callbackError = 
-    status === 'error'
+  const callbackError = reason
       ? new Error(
           reason === 'access_denied'
             ? 'You cancelled the Strava connection.'
@@ -46,9 +43,6 @@ export function StravaConnectPage() {
 
   const connectionError = connectionStatusError ?? connectError ?? callbackError
   const connectedAthleteId = isConnected && connectionStatus?.athleteId ? String(connectionStatus.athleteId) : null
-
-  const shouldAutoImportOnPageLoad = isConnected && !connectionStatusLoading && !connectionStatusError
-  useAutoStravaImport(shouldAutoImportOnPageLoad, handleImport)
 
   const handleConnectClick = async () => {
     try {

@@ -2,24 +2,14 @@ import { Navigate, useSearchParams } from 'react-router'
 
 export function StravaCallbackHandler() {
   const [searchParams] = useSearchParams()
-  const status = searchParams.get('status')
-  const athleteId = searchParams.get('athleteId')
-  const reason = searchParams.get('reason')
-  const redirectParams = new URLSearchParams()
+  const errorReason = searchParams.get('reason')
+  const errorParams = new URLSearchParams()
 
-  if (status) {
-    redirectParams.set('status', status)
+  if (errorReason) {
+    errorParams.set('reason', errorReason)
   }
 
-  if (athleteId) {
-    redirectParams.set('athleteId', athleteId)
-  }
-
-  if (reason) {
-    redirectParams.set('reason', reason)
-  }
-
-  const search = redirectParams.toString()
+  const search = errorParams.toString()
 
   return <Navigate to={search ? `/strava?${search}` : '/strava'} replace />
 }

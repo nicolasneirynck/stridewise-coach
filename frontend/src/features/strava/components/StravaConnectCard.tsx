@@ -9,13 +9,6 @@ export function StravaConnectCard({
 }: StravaConnectCardProps) {
   return (
     <>
-      <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50 p-5">
-        <h2 className="text-lg font-semibold text-zinc-900">What happens next</h2>
-        <p className="mt-2 text-sm text-zinc-600">
-          You will be sent to Strava to approve access, then returned to the app.
-        </p>
-      </div>
-
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           type="button"

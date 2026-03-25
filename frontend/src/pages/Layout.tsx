@@ -1,5 +1,9 @@
 import { Navigate, Outlet } from 'react-router'
+import useSWR from 'swr'
 import { NavBar } from '../components/NavBar'
+import { requestStravaConnectionStatus } from '../features/strava/api/strava'
+import { useStravaImport } from '../features/strava/hooks/useStravaImport'
+import { useStravaAutoImportOnAppLoad } from '../features/strava/hooks/useStravaAutoImportOnAppLoad'
 
 export default function Layout() {
   const token = window.localStorage.getItem('stridewise_auth_token')
@@ -7,6 +11,21 @@ export default function Layout() {
   if (!token) {
     return <Navigate to="/" replace />
   }
+
+  const {
+    data: connectionStatus,
+    isLoading: connectionStatusLoading,
+    error: connectionStatusError,
+  } = useSWR('strava/connection-status', requestStravaConnectionStatus)
+
+  const { handleImport } = useStravaImport()
+
+  const shouldAutoImportOnAppLoad =
+    connectionStatus?.isConnected === true &&
+    !connectionStatusLoading &&
+    !connectionStatusError
+
+  useStravaAutoImportOnAppLoad(shouldAutoImportOnAppLoad, handleImport)
 
   return (
     <div className="min-h-screen bg-stone-100 text-zinc-900">
