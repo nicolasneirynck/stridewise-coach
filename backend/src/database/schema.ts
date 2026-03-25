@@ -10,6 +10,7 @@ import {
 import { relations } from 'drizzle-orm';
 import { Role } from '../common/constans/roles';
 import { double } from 'drizzle-orm/mysql-core';
+import { ActivityType } from '../modules/activities/activities.dto';
 
 export const users = mysqlTable(
   'users',
@@ -32,7 +33,11 @@ export const activities = mysqlTable(
       .notNull()
       .references(() => users.id),
     activity_name: varchar('activity_name', { length: 255 }).notNull(),
+    activity_type: varchar('activity_type', { length: 255 })
+      .$type<ActivityType>()
+      .notNull(),
     start_date: timestamp('start_date').defaultNow().notNull(),
+    duration: int('duration').notNull(),
     distance: double('distance').notNull(),
     source_activity_id: bigint('source_activity_id', {
       mode: 'number',

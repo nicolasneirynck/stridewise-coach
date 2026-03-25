@@ -8,9 +8,12 @@ import type { Session } from '../../common/types/auth';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import {
   ActivityResponseDTO,
+  ActivityType,
+  ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
+import { duration } from 'drizzle-orm/gel-core';
 
 @Injectable()
 export class ActivitiesService {
@@ -19,9 +22,20 @@ export class ActivitiesService {
     private readonly stravaService: StravaService,
   ) {}
 
-  async getActivities(user: Session): Promise<ActivityResponseDTO[]> {
+  async getActivities(
+    user: Session,
+    filter?: ActivityTypeFilter,
+  ): Promise<ActivityResponseDTO[]> {
+    const activitiesFilter =
+      !filter || filter === 'all'
+        ? eq(activities.user_id, user.id)
+        : and(
+            eq(activities.user_id, user.id),
+            eq(activities.activity_type, filter),
+          );
+
     const storedActivities = await this.db.query.activities.findMany({
-      where: eq(activities.user_id, user.id),
+      where: activitiesFilter,
       orderBy: desc(activities.start_date),
     });
 
@@ -70,7 +84,9 @@ export class ActivitiesService {
     id: number;
     user_id: number;
     activity_name: string;
+    activity_type: ActivityType;
     start_date: Date;
+    duration: number;
     distance: number;
     source_activity_id: number | null;
     source: string;
@@ -79,7 +95,9 @@ export class ActivitiesService {
       id: activity.id,
       userId: activity.user_id,
       name: activity.activity_name,
+      type: activity.activity_type,
       startDate: activity.start_date.toISOString(),
+      duration: activity.duration,
       distance: activity.distance,
       sourceActivityId: activity.source_activity_id,
       source: activity.source,
@@ -90,7 +108,9 @@ export class ActivitiesService {
     activity: {
       id: string;
       name: string;
+      sportType: string;
       startDate: string;
+      movingTime: number;
       distanceMeters: number;
     },
     userId: number,
@@ -98,11 +118,46 @@ export class ActivitiesService {
     return {
       user_id: userId,
       activity_name: activity.name,
+      activity_type: this.mapSportTypeToActivityType(activity.sportType),
       start_date: new Date(activity.startDate),
+      duration: activity.movingTime,
       distance: activity.distanceMeters,
       source_activity_id: Number(activity.id),
       source: 'strava' as const,
     };
+  }
+
+  private mapSportTypeToActivityType(sportType: string): ActivityType {
+    switch (sportType) {
+      case 'Run':
+      case 'TrailRun':
+      case 'VirtualRun':
+        return 'run';
+
+      case 'Hike':
+      case 'Walk':
+      case 'Snowshoe':
+        return 'hike';
+
+      case 'Ride':
+      case 'EBikeRide':
+      case 'VirtualRide':
+      case 'MountainBikeRide':
+      case 'GravelRide':
+      case 'EMountainBikeRide':
+      case 'Handcycle':
+      case 'Velomobile':
+        return 'bike';
+
+      case 'WeightTraining':
+      case 'Crossfit':
+      case 'HighIntensityIntervalTraining':
+      case 'Workout':
+        return 'strengthtraining';
+
+      default:
+        throw new BadRequestException(`${sportType} is not supported`);
+    }
   }
 
   private validateActivityRecords(

@@ -113,21 +113,21 @@ export class StravaApiService {
         !('name' in item) ||
         !('sport_type' in item) ||
         !('start_date' in item) ||
+        !('moving_time' in item) ||
         !('distance' in item)
       ) {
         throw new BadGatewayException('Missing fields in Strava activity');
       }
 
-      const { id, name, sport_type, start_date, distance } = item as Record<
-        string,
-        unknown
-      >;
+      const { id, name, sport_type, start_date, moving_time, distance } =
+        item as Record<string, unknown>;
 
       if (
         typeof id !== 'number' ||
         typeof name !== 'string' ||
         typeof sport_type !== 'string' ||
         typeof start_date !== 'string' ||
+        typeof moving_time !== 'number' ||
         typeof distance !== 'number'
       ) {
         throw new BadGatewayException('Invalid field types in Strava activity');
@@ -138,6 +138,7 @@ export class StravaApiService {
         name,
         sportType: sport_type,
         startDate: start_date,
+        movingTime: moving_time,
         distanceMeters: distance,
       };
     });

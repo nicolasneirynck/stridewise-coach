@@ -1,9 +1,10 @@
-import { Controller, Post, Get } from '@nestjs/common';
+import { Controller, Post, Get, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ActivitiesService } from './activities.service';
 import { type Session } from '../../common/types/auth';
 import {
   ActivityResponseDTO,
+  type ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
 } from './activities.dto';
 
@@ -14,8 +15,9 @@ export class ActivitiesController {
   @Get()
   async getCurrentUserActivities(
     @CurrentUser() user: Session,
+    @Query('type') filter?: ActivityTypeFilter,
   ): Promise<ActivityResponseDTO[]> {
-    return this.activitiesService.getActivities(user);
+    return this.activitiesService.getActivities(user, filter);
   }
 
   @Post('import-from-strava')

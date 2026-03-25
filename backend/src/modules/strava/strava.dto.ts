@@ -14,6 +14,9 @@ export class StravaActivityResponseDTO {
   startDate: string;
 
   @Expose()
+  movingTime: number;
+
+  @Expose()
   distanceMeters: number;
 }
 
