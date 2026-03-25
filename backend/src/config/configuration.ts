@@ -11,7 +11,7 @@ export default () => ({
     memoryCost: parseInt(process.env.AUTH_HASH_MEMORY_COST || '65536'),
     jwt: {
       expirationInterval:
-        Number(process.env.AUTH_JWT_EXPIRATION_INTERVAL) || 3600,
+        Number(process.env.AUTH_JWT_EXPIRATION_INTERVAL) || 86400,
       secret: process.env.AUTH_JWT_SECRET || '',
       audience: process.env.AUTH_JWT_AUDIENCE || 'stridewise-users',
       issuer: process.env.AUTH_JWT_ISSUER || 'stridewise-api',

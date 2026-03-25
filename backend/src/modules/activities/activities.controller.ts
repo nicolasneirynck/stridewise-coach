@@ -19,9 +19,9 @@ export class ActivitiesController {
   }
 
   @Post('import-from-strava')
-  async importFromStrava(
+  async syncStravaActivities(
     @CurrentUser() user: Session,
   ): Promise<ImportStravaActivitiesResponseDTO> {
-    return this.activitiesService.importActivitiesFromStrava(user);
+    return this.activitiesService.syncStravaActivitiesForUser(user);
   }
 }

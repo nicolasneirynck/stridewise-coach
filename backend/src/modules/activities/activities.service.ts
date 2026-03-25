@@ -30,7 +30,7 @@ export class ActivitiesService {
     );
   }
 
-  async importActivitiesFromStrava(
+  async syncStravaActivitiesForUser(
     user: Session,
   ): Promise<ImportStravaActivitiesResponseDTO> {
     const stravaActivities = await this.stravaService.getActivitiesForUser(
