@@ -33,9 +33,8 @@ export class ActivitiesService {
   async syncStravaActivitiesForUser(
     user: Session,
   ): Promise<ImportStravaActivitiesResponseDTO> {
-    const stravaActivities = await this.stravaService.getActivitiesForUser(
-      user.id,
-    );
+    const stravaActivities =
+      await this.stravaService.fetchStravaActivitiesForUser(user.id);
 
     const activityRecords = stravaActivities.map((activity) =>
       this.toStravaActivityRecord(activity, user.id),

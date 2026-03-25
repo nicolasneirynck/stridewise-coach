@@ -7,14 +7,18 @@ import {
   StravaActivityResponseDTO,
   StravaConnectionStatusResponseDTO,
 } from './strava.dto';
+import { StravaOAuthService } from './strava-oauth.service';
 
 @Controller('strava')
 export class StravaController {
-  constructor(private readonly stravaService: StravaService) {}
+  constructor(
+    private readonly stravaService: StravaService,
+    private readonly stravaOAuthService: StravaOAuthService,
+  ) {}
 
   @Get('connect-url')
   getConnectUrl(@CurrentUser() user: Session) {
-    return { url: this.stravaService.getAuthorizationUrl(user.id) };
+    return { url: this.stravaOAuthService.getAuthorizationUrl(user.id) };
   }
 
   @Public()
@@ -28,51 +32,43 @@ export class StravaController {
   ) {
     if (error) {
       return {
-        url: this.stravaService.getFrontendCallbackUrl('error', {
-          reason: error,
-        }),
+        url: this.stravaOAuthService.getFrontendStravaErrorUrl(error),
       };
     }
 
     if (!code) {
       return {
-        url: this.stravaService.getFrontendCallbackUrl('error', {
-          reason: 'missing_code',
-        }),
+        url: this.stravaOAuthService.getFrontendStravaErrorUrl('missing_code'),
       };
     }
 
     try {
-      const userId = this.stravaService.getUserIdFromOAuthState(state);
-      const tokenResponse = await this.stravaService.exchangeCodeForToken(code);
-      await this.stravaService.saveConnection(userId, tokenResponse);
+      const userId = this.stravaOAuthService.getUserIdFromOAuthState(state);
+      await this.stravaService.connectUserFromAuthorizationCode(userId, code);
 
       return {
-        url: this.stravaService.getFrontendCallbackUrl('success', {
-          userId: String(userId),
-          athleteId: String(tokenResponse.athlete.id),
-        }),
+        url: this.stravaOAuthService.getFrontendStravaPageUrl(),
       };
     } catch {
       return {
-        url: this.stravaService.getFrontendCallbackUrl('error', {
-          reason: 'token_exchange_failed',
-        }),
+        url: this.stravaOAuthService.getFrontendStravaErrorUrl(
+          'token_exchange_failed',
+        ),
       };
     }
   }
 
   @Get('connection-status')
-  async isCurrentUserConnected(
+  async getCurrentUserStravaConnectionStatus(
     @CurrentUser() user: Session,
   ): Promise<StravaConnectionStatusResponseDTO> {
-    return this.stravaService.isConnected(user.id);
+    return this.stravaService.getStravaConnectionStatus(user.id);
   }
 
   @Get('activities')
-  async getActivitiesForCurrentUser(
+  async getCurrentUserStravaActivities(
     @CurrentUser() user: Session,
   ): Promise<StravaActivityResponseDTO[]> {
-    return this.stravaService.getActivitiesForUser(user.id);
+    return this.stravaService.fetchStravaActivitiesForUser(user.id);
   }
 }
