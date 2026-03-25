@@ -190,6 +190,60 @@ export class StravaService {
     return { isConnected: true, athleteId: stravaConnection.strava_athlete_id };
   }
 
+  async refreshAccessToken(refreshToken: string): Promise<StravaTokenResponse> {
+    const clientId = this.configService.getOrThrow<string>('strava.clientId');
+    const clientSecret = this.configService.getOrThrow<string>(
+      'strava.clientSecret',
+    );
+
+    const response = await fetch('https://www.strava.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new BadGatewayException(
+        `Strava token exchange failed: ${response.status} ${errorBody}`,
+      );
+    }
+
+    return (await response.json()) as StravaTokenResponse;
+  }
+
+  private isStravaTokenExpired(expiresAt: number): boolean {
+    const nowInSeconds = new Date().getTime() / 1000;
+    return expiresAt <= nowInSeconds;
+  }
+
+  private async updateConnectionTokens(
+    userId: number,
+    stravaTokenResponse: StravaTokenResponse,
+  ) {
+    await this.db
+      .update(strava_connections)
+      .set({
+        strava_athlete_id: stravaTokenResponse.athlete.id,
+        access_token: stravaTokenResponse.access_token,
+        refresh_token: stravaTokenResponse.refresh_token,
+        expires_at: stravaTokenResponse.expires_at,
+        updated_at: new Date(),
+      })
+      .where(eq(strava_connections.user_id, userId));
+  }
+  // strava_athlete_id: int('strava_athlete_id').notNull(),
+  //     access_token: varchar('access_token', { length: 255 }).notNull(),
+  //     refresh_token: varchar('refresh_token', { length: 255 }).notNull(),
+  //     expires_at: int('expires_at').notNull(),
+
   async getActivitiesForUser(
     userId: number,
   ): Promise<StravaActivityResponseDTO[]> {
@@ -214,11 +268,29 @@ export class StravaService {
         'Stored Strava connection is invalid/incomplete',
       );
 
+    let accessToken: string = stravaConnection.access_token;
+    if (this.isStravaTokenExpired(stravaConnection.expires_at)) {
+      if (
+        stravaConnection.refresh_token === undefined ||
+        stravaConnection.refresh_token === null ||
+        stravaConnection.refresh_token.trim() === ''
+      ) {
+        throw new InternalServerErrorException(
+          'Stored Strava refresh token is invalid/incomplete',
+        );
+      }
+      const refreshedTokenResponse = await this.refreshAccessToken(
+        stravaConnection.refresh_token,
+      );
+      await this.updateConnectionTokens(userId, refreshedTokenResponse);
+      accessToken = refreshedTokenResponse.access_token;
+    }
+
     const response = await fetch(
       'https://www.strava.com/api/v3/athlete/activities',
       {
         method: 'GET',
-        headers: { Authorization: `Bearer ${stravaConnection.access_token}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       },
     );
 
