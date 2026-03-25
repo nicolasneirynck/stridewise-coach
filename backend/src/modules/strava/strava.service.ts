@@ -13,7 +13,10 @@ import {
 } from '../../database/drizzle.provider';
 import { strava_connections } from '../../database/schema';
 import { sql, eq } from 'drizzle-orm';
-import { StravaActivityResponseDTO } from './strava.dto';
+import {
+  StravaActivityResponseDTO,
+  StravaConnectionStatusResponseDTO,
+} from './strava.dto';
 
 interface StravaAthlete {
   id: number;
@@ -162,6 +165,29 @@ export class StravaService {
           updated_at: sql`CURRENT_TIMESTAMP`,
         },
       });
+  }
+
+  async isConnected(
+    userId: number,
+  ): Promise<StravaConnectionStatusResponseDTO> {
+    const stravaConnection = await this.db.query.strava_connections.findFirst({
+      where: eq(strava_connections.user_id, userId),
+    });
+
+    if (stravaConnection === undefined) {
+      return { isConnected: false, athleteId: null };
+    }
+
+    if (
+      stravaConnection.access_token === undefined ||
+      stravaConnection.access_token === null ||
+      stravaConnection.access_token.trim() === ''
+    )
+      throw new InternalServerErrorException( // InternalServerErrorException for row exists but token missing/invalid
+        'Stored Strava connection is invalid/incomplete',
+      );
+
+    return { isConnected: true, athleteId: stravaConnection.strava_athlete_id };
   }
 
   async getActivitiesForUser(

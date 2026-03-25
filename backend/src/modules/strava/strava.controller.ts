@@ -3,7 +3,10 @@ import { Public } from '../auth/decorators/public.decorator';
 import { StravaService } from './strava.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { Session } from '../../common/types/auth';
-import { StravaActivityResponseDTO } from './strava.dto';
+import {
+  StravaActivityResponseDTO,
+  StravaConnectionStatusResponseDTO,
+} from './strava.dto';
 
 @Controller('strava')
 export class StravaController {
@@ -57,6 +60,13 @@ export class StravaController {
         }),
       };
     }
+  }
+
+  @Get('connection-status')
+  async isCurrentUserConnected(
+    @CurrentUser() user: Session,
+  ): Promise<StravaConnectionStatusResponseDTO> {
+    return this.stravaService.isConnected(user.id);
   }
 
   @Get('activities')
