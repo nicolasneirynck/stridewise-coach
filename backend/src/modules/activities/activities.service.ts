@@ -13,7 +13,6 @@ import {
   ImportStravaActivitiesResponseDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
-import { duration } from 'drizzle-orm/gel-core';
 
 @Injectable()
 export class ActivitiesService {
@@ -62,12 +61,17 @@ export class ActivitiesService {
       (activity) => !existingSourceIds.has(activity.source_activity_id),
     );
 
-    if (newActivityRecords.length > 0) {
+    if (activityRecords.length > 0) {
       await this.db
         .insert(activities)
-        .values(newActivityRecords)
+        .values(activityRecords)
         .onDuplicateKeyUpdate({
           set: {
+            activity_name: sql`values(activity_name)`,
+            activity_type: sql`values(activity_type)`,
+            start_date: sql`values(start_date)`,
+            duration: sql`values(duration)`,
+            distance: sql`values(distance)`,
             updated_at: sql`CURRENT_TIMESTAMP`,
           },
         });
