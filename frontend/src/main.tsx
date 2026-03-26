@@ -9,6 +9,7 @@ import { HomePage } from './pages/HomePage.tsx'
 import NotFound from './pages/NotFound.tsx'
 import { StravaConnectPage } from './features/strava/routes/StravaConnectPage.tsx'
 import { StravaCallbackHandler } from './features/strava/routes/StravaCallbackHandler.tsx'
+import { ActivitiesPage } from './pages/ActivitiesPage.tsx'
 
 const router = createBrowserRouter([
   {
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
     Component: Layout,
     children: [
       { path: '/home', Component: HomePage },
+      { path: '/activities', Component: ActivitiesPage },
       { path: '/strava', Component: StravaConnectPage },
       { path: '/strava/callback', Component: StravaCallbackHandler },
     ],

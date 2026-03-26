@@ -35,6 +35,9 @@ export function NavBar() {
           <NavLink to="/home" className={getNavLinkClassName}>
             Home
           </NavLink>
+          <NavLink to="/activities" className={getNavLinkClassName}>
+            Activities
+          </NavLink>
           <NavLink to="/strava" className={getNavLinkClassName}>
             Strava Connect
           </NavLink>

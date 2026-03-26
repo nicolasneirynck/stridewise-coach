@@ -12,7 +12,6 @@ export function StravaConnectPage() {
 
   const {
     data: connectionStatus,
-    isLoading: connectionStatusLoading,
     error: connectionStatusError
   } = useSWR('strava/connection-status', requestStravaConnectionStatus)
 
