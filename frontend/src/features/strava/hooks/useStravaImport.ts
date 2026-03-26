@@ -1,6 +1,7 @@
 import useSWRMutation from "swr/mutation"
 import { importStravaActivities, type StravaImport } from "../api/strava"
 import { useState } from "react";
+import { mutate } from "swr";
 
 export function useStravaImport(onImported?: () => Promise<unknown> | void) {
   
@@ -26,6 +27,17 @@ export function useStravaImport(onImported?: () => Promise<unknown> | void) {
     try{
       const stravaImport = await triggerStravaImport()
       storeImportFeedback(stravaImport)
+      await mutate('activities/running-graph')
+      await mutate((key) => Array.isArray(key) && key[0] === 'activities')
+      /*
+       ['activities', activityTypeFilter]
+       ->
+          ['activities', 'all']
+          ['activities', 'run']
+          ['activities', 'bike']
+          ...
+      */
+
 
       if (onImported) {
         await onImported()

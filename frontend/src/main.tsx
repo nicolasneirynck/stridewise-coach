@@ -5,7 +5,7 @@ import { RouterProvider } from 'react-router/dom'
 import './index.css'
 import LoginRoute from './pages/LoginRoute.tsx'
 import Layout from './pages/Layout.tsx'
-import { HomePage } from './pages/HomePage.tsx'
+import { Dashboard } from './pages/Dashboard.tsx'
 import NotFound from './pages/NotFound.tsx'
 import { StravaConnectPage } from './features/strava/routes/StravaConnectPage.tsx'
 import { StravaCallbackHandler } from './features/strava/routes/StravaCallbackHandler.tsx'
@@ -19,7 +19,8 @@ const router = createBrowserRouter([
   {
     Component: Layout,
     children: [
-      { path: '/home', Component: HomePage },
+      { path: '/home', Component: Dashboard
+       },
       { path: '/activities', Component: ActivitiesPage },
       { path: '/strava', Component: StravaConnectPage },
       { path: '/strava/callback', Component: StravaCallbackHandler },

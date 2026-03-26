@@ -23,17 +23,11 @@ export function NavBar() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
             StrideWise Coach
           </p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">
-            Dashboard
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-600">
-            Simple navigation for your first routed pages.
-          </p>
         </div>
 
         <nav className="mt-8 flex flex-col gap-2">
           <NavLink to="/home" className={getNavLinkClassName}>
-            Home
+            Dashboard
           </NavLink>
           <NavLink to="/activities" className={getNavLinkClassName}>
             Activities

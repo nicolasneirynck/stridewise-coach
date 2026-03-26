@@ -19,6 +19,12 @@ export interface StoredActivity {
   source: string
 }
 
+export type RunningActivityGraphPoint = {
+  startDate: string,
+  averagePace: number,
+  averageHeartRate: number
+}
+
 function getAuthToken(): string {
   const authToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
 
@@ -58,4 +64,20 @@ export async function requestStoredActivities(filter:ActivityTypeFilter = 'all')
   } catch (error) {
     return handleExpiredAuth(error)
   }
+}
+
+  export async function requestRunningGraphData(): Promise<RunningActivityGraphPoint[]> {
+    const authToken = getAuthToken()
+
+    try {
+      const response = await axios.get<RunningActivityGraphPoint[]>(`${API_BASE_URL}/activities/running-graph`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      return response.data
+    } catch (error) {
+      return handleExpiredAuth(error)
+    }
 }
