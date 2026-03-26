@@ -119,8 +119,15 @@ export class StravaApiService {
         throw new BadGatewayException('Missing fields in Strava activity');
       }
 
-      const { id, name, sport_type, start_date, moving_time, distance } =
-        item as Record<string, unknown>;
+      const {
+        id,
+        name,
+        sport_type,
+        start_date,
+        moving_time,
+        distance,
+        average_heartrate,
+      } = item as Record<string, unknown>;
 
       if (
         typeof id !== 'number' ||
@@ -133,6 +140,16 @@ export class StravaApiService {
         throw new BadGatewayException('Invalid field types in Strava activity');
       }
 
+      if (
+        average_heartrate !== undefined &&
+        average_heartrate !== null &&
+        typeof average_heartrate !== 'number'
+      ) {
+        throw new BadGatewayException(
+          'Invalid average heartrate type in Strava activity',
+        );
+      }
+
       return {
         id: String(id),
         name,
@@ -140,6 +157,10 @@ export class StravaApiService {
         startDate: start_date,
         movingTime: moving_time,
         distanceMeters: distance,
+        averageHeartrate:
+          average_heartrate === undefined || average_heartrate === null
+            ? null
+            : average_heartrate,
       };
     });
   }

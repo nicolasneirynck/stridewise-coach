@@ -1,0 +1,1 @@
+ALTER TABLE `activities` ADD `average_heartrate` double;

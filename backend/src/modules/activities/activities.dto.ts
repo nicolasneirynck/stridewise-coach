@@ -48,3 +48,14 @@ export class ImportStravaActivitiesResponseDTO {
   @Expose()
   skippedCount: number;
 }
+
+export class RunningActivityGraphPointDTO {
+  @Expose()
+  startDate: string;
+
+  @Expose()
+  averagePace: number;
+
+  @Expose()
+  averageHeartRate: number | null;
+}

@@ -11,6 +11,7 @@ import {
   ActivityType,
   ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
+  RunningActivityGraphPointDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
 
@@ -41,6 +42,31 @@ export class ActivitiesService {
     return storedActivities.map((activity) =>
       this.toActivityResponse(activity),
     );
+  }
+
+  async getRunningActivityGraphData(
+    user: Session,
+  ): Promise<RunningActivityGraphPointDTO[]> {
+    const activitiesFilter = and(
+      eq(activities.user_id, user.id),
+      eq(activities.activity_type, 'run'),
+    );
+
+    const storedActivities = await this.db.query.activities.findMany({
+      where: activitiesFilter,
+      orderBy: desc(activities.start_date),
+    });
+
+    return storedActivities
+      .filter((activity) => {
+        const hasAverageHeartrate =
+          activity.average_heartrate !== null &&
+          activity.average_heartrate !== undefined &&
+          activity.average_heartrate > 0;
+
+        return hasAverageHeartrate;
+      })
+      .map((activity) => this.toRunningActivityGraphPoint(activity));
   }
 
   async syncStravaActivitiesForUser(
@@ -108,6 +134,27 @@ export class ActivitiesService {
     };
   }
 
+  private toRunningActivityGraphPoint(activity: {
+    id: number;
+    user_id: number;
+    activity_name: string;
+    activity_type: ActivityType;
+    start_date: Date;
+    average_heartrate: number | null;
+    duration: number;
+    distance: number;
+    source_activity_id: number | null;
+    source: string;
+  }): RunningActivityGraphPointDTO {
+    const pace = ((activity.duration * 1000) / activity.distance) * 60;
+
+    return {
+      startDate: activity.start_date.toISOString(),
+      averagePace: pace,
+      averageHeartRate: activity.average_heartrate,
+    };
+  }
+
   private toStravaActivityRecord(
     activity: {
       id: string;
@@ -116,6 +163,7 @@ export class ActivitiesService {
       startDate: string;
       movingTime: number;
       distanceMeters: number;
+      averageHeartrate: number | null;
     },
     userId: number,
   ) {
@@ -126,6 +174,7 @@ export class ActivitiesService {
       start_date: new Date(activity.startDate),
       duration: activity.movingTime,
       distance: activity.distanceMeters,
+      average_heartrate: activity.averageHeartrate,
       source_activity_id: Number(activity.id),
       source: 'strava' as const,
     };

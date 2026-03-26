@@ -39,6 +39,7 @@ export const activities = mysqlTable(
     start_date: timestamp('start_date').defaultNow().notNull(),
     duration: int('duration').notNull(),
     distance: double('distance').notNull(),
+    average_heartrate: double('average_heartrate'),
     source_activity_id: bigint('source_activity_id', {
       mode: 'number',
       unsigned: true,

@@ -18,6 +18,9 @@ export class StravaActivityResponseDTO {
 
   @Expose()
   distanceMeters: number;
+
+  @Expose()
+  averageHeartrate: number | null;
 }
 
 export class StravaConnectionStatusResponseDTO {

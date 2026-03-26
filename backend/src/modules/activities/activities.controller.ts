@@ -6,6 +6,7 @@ import {
   ActivityResponseDTO,
   type ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
+  RunningActivityGraphPointDTO,
 } from './activities.dto';
 
 @Controller('activities')
@@ -18,6 +19,13 @@ export class ActivitiesController {
     @Query('type') filter?: ActivityTypeFilter,
   ): Promise<ActivityResponseDTO[]> {
     return this.activitiesService.getActivities(user, filter);
+  }
+
+  @Get('running-graph')
+  async getCurrentUserRunningGraphData(
+    @CurrentUser() user: Session,
+  ): Promise<RunningActivityGraphPointDTO[]> {
+    return this.activitiesService.getRunningActivityGraphData(user);
   }
 
   @Post('import-from-strava')
