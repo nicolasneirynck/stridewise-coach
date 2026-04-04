@@ -7,6 +7,7 @@ import {
   type ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
   RunningActivityGraphPointDTO,
+  WeeklyLoadDTO,
 } from './activities.dto';
 
 @Controller('activities')
@@ -26,6 +27,11 @@ export class ActivitiesController {
     @CurrentUser() user: Session,
   ): Promise<RunningActivityGraphPointDTO[]> {
     return this.activitiesService.getRunningActivityGraphData(user);
+  }
+
+  @Get('weekly-load')
+  async getWeeklyLoad(@CurrentUser() user: Session): Promise<WeeklyLoadDTO[]> {
+    return this.activitiesService.getWeeklyLoad(user);
   }
 
   @Post('import-from-strava')

@@ -12,6 +12,7 @@ import {
   ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
   RunningActivityGraphPointDTO,
+  WeeklyLoadDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
 
@@ -69,6 +70,71 @@ export class ActivitiesService {
       .map((activity) => this.toRunningActivityGraphPoint(activity));
   }
 
+  async getWeeklyLoad(user: Session): Promise<WeeklyLoadDTO[]> {
+    const storedActivities = await this.db.query.activities.findMany({
+      columns: { start_date: true, distance: true },
+      where: and(
+        eq(activities.user_id, user.id),
+        eq(activities.activity_type, 'run'),
+      ),
+    });
+
+    const weeklyTotals = new Map<string, number>();
+
+    for (const activity of storedActivities) {
+      const weekStartDate = this.getWeekStartDate(activity.start_date);
+      const currentTotal = weeklyTotals.get(weekStartDate) ?? 0;
+
+      weeklyTotals.set(weekStartDate, currentTotal + activity.distance);
+    }
+
+    const sortedWeeks = Array.from(weeklyTotals.keys()).sort();
+
+    if (sortedWeeks.length === 0) {
+      return [];
+    }
+
+    return this.fillMissingWeeks(
+      sortedWeeks[0],
+      sortedWeeks[sortedWeeks.length - 1],
+      weeklyTotals,
+    );
+  }
+
+  private getWeekStartDate(date: Date): string {
+    const weekStart = new Date(date);
+    const day = weekStart.getUTCDay();
+    const daysSinceMonday = (day + 6) % 7;
+
+    weekStart.setUTCDate(weekStart.getUTCDate() - daysSinceMonday);
+    weekStart.setUTCHours(0, 0, 0, 0);
+
+    return weekStart.toISOString().slice(0, 10);
+  }
+
+  private fillMissingWeeks(
+    firstWeek: string,
+    lastWeek: string,
+    weeklyTotals: Map<string, number>,
+  ): WeeklyLoadDTO[] {
+    const result: WeeklyLoadDTO[] = [];
+
+    for (
+      const currentWeek = new Date(`${firstWeek}T00:00:00.000Z`);
+      currentWeek <= new Date(`${lastWeek}T00:00:00.000Z`);
+      currentWeek.setUTCDate(currentWeek.getUTCDate() + 7)
+    ) {
+      const weekStartDate = currentWeek.toISOString().slice(0, 10);
+
+      result.push({
+        weekStartDate,
+        totalLoad: weeklyTotals.get(weekStartDate) ?? 0,
+      });
+    }
+
+    return result;
+  }
+
   async syncStravaActivitiesForUser(
     user: Session,
   ): Promise<ImportStravaActivitiesResponseDTO> {
@@ -98,6 +164,7 @@ export class ActivitiesService {
             start_date: sql`values(start_date)`,
             duration: sql`values(duration)`,
             distance: sql`values(distance)`,
+            average_heartrate: sql`values(average_heartrate)`,
             updated_at: sql`CURRENT_TIMESTAMP`,
           },
         });
@@ -146,11 +213,12 @@ export class ActivitiesService {
     source_activity_id: number | null;
     source: string;
   }): RunningActivityGraphPointDTO {
-    const pace = ((activity.duration * 1000) / activity.distance) * 60;
+    const paceInSecondsPerKilometer =
+      activity.duration / (activity.distance / 1000);
 
     return {
       startDate: activity.start_date.toISOString(),
-      averagePace: pace,
+      averagePace: paceInSecondsPerKilometer,
       averageHeartRate: activity.average_heartrate,
     };
   }

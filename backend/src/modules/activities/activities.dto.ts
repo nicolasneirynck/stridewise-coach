@@ -59,3 +59,11 @@ export class RunningActivityGraphPointDTO {
   @Expose()
   averageHeartRate: number | null;
 }
+
+export class WeeklyLoadDTO {
+  @Expose()
+  weekStartDate: string;
+
+  @Expose()
+  totalLoad: number;
+}
