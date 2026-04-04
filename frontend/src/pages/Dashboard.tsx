@@ -1,6 +1,7 @@
 import useSWR from "swr"
-import { requestRunningGraphData } from "../features/activities/api/activities"
+import { requestRunningGraphData, requestWeeklyLoadData } from "../features/activities/api/activities"
 import HeartRateVsPaceChart from "../features/activities/components/HeartRateVsPaceChart"
+import WeeklyTrainingLoadChart from "../features/activities/components/WeeklyTrainingLoadChart"
 
 export function Dashboard() {
 
@@ -33,6 +34,34 @@ export function Dashboard() {
             </div>
   }
 
+  const {
+    data: weeklyLoad,
+    error: weeklyLoadError,
+    isLoading: isWeeklyLoadLoading,
+  } = useSWR('activities/weekly-load',requestWeeklyLoadData)
+
+   const linePoints = weeklyLoad === undefined ? [] : weeklyLoad.map(load => ({
+    weekStartDate: load.weekStartDate,
+    totalLoad: load.totalLoad,
+  }))
+
+  const renderWeeklyLoadSection = () => {
+    if (isWeeklyLoadLoading){
+      return (<p>still loading</p>)
+    }
+    if (weeklyLoadError){
+      return (<p>{weeklyLoadError.message}</p>)
+    }
+    if (weeklyLoad && weeklyLoad.length === 0){
+      return (<p>No weekly training load data yet</p>)
+    }
+    return <div>
+              <h3>Weekly training load</h3>
+              <WeeklyTrainingLoadChart points={linePoints}/>
+            </div>
+
+  }
+
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
       <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
@@ -42,6 +71,7 @@ export function Dashboard() {
         Dashboard
       </h1>
       {renderChartSection()}
+      {renderWeeklyLoadSection()}
     </section>
   )
 }

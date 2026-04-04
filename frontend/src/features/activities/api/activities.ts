@@ -25,6 +25,12 @@ export type RunningActivityGraphPoint = {
   averageHeartRate: number
 }
 
+export type WeeklyLoadDataPoint = {
+  weekStartDate: string,
+  totalLoad: number
+}
+
+
 function getAuthToken(): string {
   const authToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
 
@@ -71,6 +77,22 @@ export async function requestStoredActivities(filter:ActivityTypeFilter = 'all')
 
     try {
       const response = await axios.get<RunningActivityGraphPoint[]>(`${API_BASE_URL}/activities/running-graph`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      return response.data
+    } catch (error) {
+      return handleExpiredAuth(error)
+    }
+  }
+
+  export async function requestWeeklyLoadData(): Promise<WeeklyLoadDataPoint[]>{
+    const authToken = getAuthToken()
+
+    try{
+      const response = await axios.get<WeeklyLoadDataPoint[]>(`${API_BASE_URL}/activities/weekly-load`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
