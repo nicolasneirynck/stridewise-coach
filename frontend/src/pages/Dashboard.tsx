@@ -1,10 +1,14 @@
 import useSWR from "swr"
-import { requestRunningGraphData, requestWeeklyLoadData } from "../features/activities/api/activities"
+import {
+  requestRunningGraphData,
+  requestTargetHeartRateActivities,
+  requestWeeklyLoadData,
+} from "../features/activities/api/activities"
 import HeartRateVsPaceChart from "../features/activities/components/HeartRateVsPaceChart"
 import WeeklyTrainingLoadChart from "../features/activities/components/WeeklyTrainingLoadChart"
+import PaceEvolutionChart from "../features/activities/components/PaceEvolutionChart"
 
 export function Dashboard() {
-
   const {
     data: runningGraph,
     error,
@@ -62,6 +66,39 @@ export function Dashboard() {
 
   }
 
+  const {
+    data: targetHeartRateActivities,
+    error: targetHeartRateError,
+    isLoading: isTargetHeartRateLoading,
+  } = useSWR('activities/running-activities/target-heart-rate', requestTargetHeartRateActivities)
+
+  const paceEvolutionPoints = targetHeartRateActivities === undefined
+    ? []
+    : targetHeartRateActivities.map((activity) => ({
+        id: activity.id,
+        date: activity.startDate,
+        pace: activity.averagePace,
+      }))
+
+  const renderTargetHeartRateSection = () => {
+    if (isTargetHeartRateLoading) {
+      return <p>loading</p>
+    }
+
+    if (targetHeartRateError) {
+      return <p>{targetHeartRateError.message}</p>
+    }
+
+    if (paceEvolutionPoints.length === 0) {
+      return <p>No target heart rate activities yet</p>
+    }
+
+    return <div>
+              <h3>Target heart rate activities</h3>
+              <PaceEvolutionChart points={paceEvolutionPoints}/>
+            </div>
+  }
+
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
       <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
@@ -72,6 +109,7 @@ export function Dashboard() {
       </h1>
       {renderChartSection()}
       {renderWeeklyLoadSection()}
+      {renderTargetHeartRateSection()}
     </section>
   )
 }

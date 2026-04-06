@@ -30,6 +30,15 @@ export type WeeklyLoadDataPoint = {
   totalLoad: number
 }
 
+export type RunningActivityAnalysis = {
+  id: number
+  startDate: string
+  averageHeartRate: number
+  averagePace: number
+  distance: number
+  duration: number
+}
+
 
 function getAuthToken(): string {
   const authToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
@@ -102,4 +111,20 @@ export async function requestStoredActivities(filter:ActivityTypeFilter = 'all')
     } catch (error) {
       return handleExpiredAuth(error)
     }
+}
+
+export async function requestTargetHeartRateActivities(): Promise<RunningActivityAnalysis[]> {
+  const authToken = getAuthToken()
+
+  try {
+    const response = await axios.get<RunningActivityAnalysis[]>(`${API_BASE_URL}/activities/running-activities/target-heart-rate`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+
+    return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
 }
