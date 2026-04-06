@@ -5,12 +5,13 @@ import {
 } from '../../database/drizzle.provider';
 import { activities } from '../../database/schema';
 import type { Session } from '../../common/types/auth';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, sql, asc } from 'drizzle-orm';
 import {
   ActivityResponseDTO,
   ActivityType,
   ActivityTypeFilter,
   ImportStravaActivitiesResponseDTO,
+  RunningActivityAnalysisDTO,
   RunningActivityGraphPointDTO,
   WeeklyLoadDTO,
 } from './activities.dto';
@@ -48,26 +49,14 @@ export class ActivitiesService {
   async getRunningActivityGraphData(
     user: Session,
   ): Promise<RunningActivityGraphPointDTO[]> {
-    const activitiesFilter = and(
-      eq(activities.user_id, user.id),
-      eq(activities.activity_type, 'run'),
-    );
-
     const storedActivities = await this.db.query.activities.findMany({
-      where: activitiesFilter,
+      where: eq(activities.user_id, user.id),
       orderBy: desc(activities.start_date),
     });
 
-    return storedActivities
-      .filter((activity) => {
-        const hasAverageHeartrate =
-          activity.average_heartrate !== null &&
-          activity.average_heartrate !== undefined &&
-          activity.average_heartrate > 0;
-
-        return hasAverageHeartrate;
-      })
-      .map((activity) => this.toRunningActivityGraphPoint(activity));
+    return this.filterRunningActivitiesWithUsableHeartRate(
+      storedActivities,
+    ).map((activity) => this.toRunningActivityGraphPoint(activity));
   }
 
   async getWeeklyLoad(user: Session): Promise<WeeklyLoadDTO[]> {
@@ -177,6 +166,19 @@ export class ActivitiesService {
     };
   }
 
+  async getRunningActivitiesInTargetHeartRateRange(
+    user: Session,
+  ): Promise<RunningActivityAnalysisDTO[]> {
+    const storedActivities = await this.db.query.activities.findMany({
+      where: eq(activities.user_id, user.id),
+      orderBy: asc(activities.start_date),
+    });
+
+    return this.filterRunningActivitiesInTargetHeartRateRange(
+      storedActivities,
+    ).map((activity) => this.toRunningActivityAnalysis(activity));
+  }
+
   private toActivityResponse(activity: {
     id: number;
     user_id: number;
@@ -220,6 +222,26 @@ export class ActivitiesService {
       startDate: activity.start_date.toISOString(),
       averagePace: paceInSecondsPerKilometer,
       averageHeartRate: activity.average_heartrate,
+    };
+  }
+
+  private toRunningActivityAnalysis(activity: {
+    id: number;
+    start_date: Date;
+    average_heartrate: number | null;
+    duration: number;
+    distance: number;
+  }): RunningActivityAnalysisDTO {
+    const paceInSecondsPerKilometer =
+      activity.duration / (activity.distance / 1000);
+
+    return {
+      id: activity.id,
+      startDate: activity.start_date.toISOString(),
+      averageHeartRate: activity.average_heartrate!,
+      averagePace: paceInSecondsPerKilometer,
+      distance: activity.distance,
+      duration: activity.duration,
     };
   }
 
@@ -302,5 +324,56 @@ export class ActivitiesService {
       );
 
     return new Set(existingIds.map((activity) => activity.id));
+  }
+
+  private filterRunningActivitiesWithUsableHeartRate(
+    activities: {
+      duration: number;
+      id: number;
+      user_id: number;
+      activity_name: string;
+      activity_type: ActivityType;
+      start_date: Date;
+      distance: number;
+      average_heartrate: number | null;
+      source_activity_id: number | null;
+      source: string;
+      created_at: Date;
+      updated_at: Date;
+    }[],
+  ) {
+    return activities.filter((activity) => {
+      const hasAverageHeartrate =
+        activity.average_heartrate !== null &&
+        activity.average_heartrate !== undefined &&
+        activity.average_heartrate > 0;
+
+      return hasAverageHeartrate && activity.activity_type == 'run';
+    });
+  }
+
+  private isHeartRateInTargetRange(heartrate: number): boolean {
+    return heartrate >= 140 && heartrate <= 150;
+  }
+
+  private filterRunningActivitiesInTargetHeartRateRange(
+    activities: {
+      duration: number;
+      id: number;
+      user_id: number;
+      activity_name: string;
+      activity_type: ActivityType;
+      start_date: Date;
+      distance: number;
+      average_heartrate: number | null;
+      source_activity_id: number | null;
+      source: string;
+      created_at: Date;
+      updated_at: Date;
+    }[],
+  ) {
+    return this.filterRunningActivitiesWithUsableHeartRate(activities).filter(
+      (activity) => this.isHeartRateInTargetRange(activity.average_heartrate!),
+    );
   }
 }

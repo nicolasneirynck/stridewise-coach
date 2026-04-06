@@ -67,3 +67,23 @@ export class WeeklyLoadDTO {
   @Expose()
   totalLoad: number;
 }
+
+export class RunningActivityAnalysisDTO {
+  @Expose()
+  id: number;
+
+  @Expose()
+  startDate: string;
+
+  @Expose()
+  averageHeartRate: number;
+
+  @Expose()
+  averagePace: number;
+
+  @Expose()
+  distance: number;
+
+  @Expose()
+  duration: number;
+}
