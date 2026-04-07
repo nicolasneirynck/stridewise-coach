@@ -10,6 +10,7 @@ import {
   ActivityResponseDTO,
   ActivityType,
   ActivityTypeFilter,
+  HeartRateIntervalInputDTO,
   ImportStravaActivitiesResponseDTO,
   RunningActivityAnalysisDTO,
   RunningActivityGraphPointDTO,
@@ -168,7 +169,14 @@ export class ActivitiesService {
 
   async getRunningActivitiesInTargetHeartRateRange(
     user: Session,
+    interval: HeartRateIntervalInputDTO,
   ): Promise<RunningActivityAnalysisDTO[]> {
+    if (interval.minHeartRate > interval.maxHeartRate) {
+      throw new BadRequestException(
+        'Minimum heartrate should be lower than maximum heartrate',
+      );
+    }
+
     const storedActivities = await this.db.query.activities.findMany({
       where: eq(activities.user_id, user.id),
       orderBy: asc(activities.start_date),
@@ -176,6 +184,7 @@ export class ActivitiesService {
 
     return this.filterRunningActivitiesInTargetHeartRateRange(
       storedActivities,
+      interval,
     ).map((activity) => this.toRunningActivityAnalysis(activity));
   }
 
@@ -352,8 +361,12 @@ export class ActivitiesService {
     });
   }
 
-  private isHeartRateInTargetRange(heartrate: number): boolean {
-    return heartrate >= 140 && heartrate <= 150;
+  private isHeartRateInTargetRange(
+    heartRate: number,
+    minHeartRate: number,
+    maxHeartRate: number,
+  ): boolean {
+    return heartRate >= minHeartRate && heartRate <= maxHeartRate;
   }
 
   private filterRunningActivitiesInTargetHeartRateRange(
@@ -371,9 +384,15 @@ export class ActivitiesService {
       created_at: Date;
       updated_at: Date;
     }[],
+    interval: HeartRateIntervalInputDTO,
   ) {
     return this.filterRunningActivitiesWithUsableHeartRate(activities).filter(
-      (activity) => this.isHeartRateInTargetRange(activity.average_heartrate!),
+      (activity) =>
+        this.isHeartRateInTargetRange(
+          activity.average_heartrate!,
+          interval.minHeartRate,
+          interval.maxHeartRate,
+        ),
     );
   }
 }

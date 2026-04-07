@@ -5,6 +5,7 @@ import { type Session } from '../../common/types/auth';
 import {
   ActivityResponseDTO,
   type ActivityTypeFilter,
+  HeartRateIntervalInputDTO,
   ImportStravaActivitiesResponseDTO,
   RunningActivityAnalysisDTO,
   RunningActivityGraphPointDTO,
@@ -38,9 +39,11 @@ export class ActivitiesController {
   @Get('running-activities/target-heart-rate')
   async getCurrentUserRunningActivitiesInTargetHeartRate(
     @CurrentUser() user: Session,
+    @Query() interval: HeartRateIntervalInputDTO,
   ): Promise<RunningActivityAnalysisDTO[]> {
     return this.activitiesService.getRunningActivitiesInTargetHeartRateRange(
       user,
+      interval,
     );
   }
 

@@ -1,4 +1,5 @@
 import { Expose } from 'class-transformer';
+import { IsNumber, Min } from 'class-validator';
 
 export type ActivityType = 'run' | 'hike' | 'strengthtraining' | 'bike';
 
@@ -86,4 +87,14 @@ export class RunningActivityAnalysisDTO {
 
   @Expose()
   duration: number;
+}
+
+export class HeartRateIntervalInputDTO {
+  @IsNumber()
+  @Min(0)
+  minHeartRate: number;
+
+  @IsNumber()
+  @Min(0)
+  maxHeartRate: number;
 }
