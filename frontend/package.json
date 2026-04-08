@@ -20,7 +20,8 @@
     "recharts": "^3.8.1",
     "stridewise-frontend": "link:",
     "swr": "^2.4.1",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "@radix-ui/react-slider": "^1.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

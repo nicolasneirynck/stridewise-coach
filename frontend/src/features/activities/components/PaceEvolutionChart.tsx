@@ -1,14 +1,22 @@
 import type { ReactNode } from "react"
+import type { TooltipProps } from "recharts"
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
 
 type PaceEvolutionPoint = {
   date: string
+  dateTimestamp: number
   pace: number
+  averageHeartRate: number
   id: number
+  name: string
+  distance: number
 }
 
 type PaceEvolutionPointProp = {
   points: PaceEvolutionPoint[]
+  rangeStartDate: Date
+  rangeEndDate: Date
 }
 
 function formatActivityDate(date: string): string {
@@ -32,18 +40,76 @@ function formatTooltipDateLabel(label: ReactNode): ReactNode {
     return formatActivityDate(label)
   }
 
+  if (typeof label === 'number') {
+    return formatActivityDate(new Date(label).toISOString())
+  }
+
   return label
 }
 
-export default function PaceEvolutionChart({points}:PaceEvolutionPointProp){
+function formatMonthTick(timestamp: number): string {
+  return new Intl.DateTimeFormat('nl-BE', {
+    month: 'short',
+  }).format(new Date(timestamp))
+}
+
+function formatDistanceKilometers(distanceInMeters: number): string {
+  return `${(distanceInMeters / 1000).toFixed(2)} km`
+}
+
+function getMonthTicks(startDate: Date, endDate: Date): number[] {
+  const ticks: number[] = []
+  const current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1))
+
+  while (current <= endDate) {
+    ticks.push(current.getTime())
+    current.setUTCMonth(current.getUTCMonth() + 1)
+  }
+
+  return ticks
+}
+
+function CustomTooltip({ active, payload, label }: TooltipProps<ValueType, NameType>) {
+  if (!active || !payload || payload.length === 0) {
+    return null
+  }
+
+  const point = payload[0]?.payload as PaceEvolutionPoint | undefined
+
+  if (!point) {
+    return null
+  }
+
+  return (
+    <div className="rounded-md border border-stone-200 bg-white px-3 py-2 shadow-sm">
+      <p className="font-medium text-zinc-950">{point.name}</p>
+      <p className="text-sm text-zinc-600">{formatTooltipDateLabel(label)}</p>
+      <p className="text-sm text-zinc-600">Distance: {formatDistanceKilometers(point.distance)}</p>
+      <p className="text-sm text-zinc-600">Average heart rate: {point.averageHeartRate} bpm</p>
+      <p className="text-sm text-zinc-600">Pace: {formatPaceSeconds(point.pace)} /km</p>
+    </div>
+  )
+}
+
+export default function PaceEvolutionChart({
+  points,
+  rangeStartDate,
+  rangeEndDate,
+}: PaceEvolutionPointProp){
+  const monthTicks = getMonthTicks(rangeStartDate, rangeEndDate)
+
   return (
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={points} margin={{ top: 20, right: 20, bottom: 36, left: 28 }}>
           <CartesianGrid />
           <XAxis
-            dataKey="date"
-            tickFormatter={formatActivityDate}
-            label={{ value: 'Date', position: 'bottom', offset: 8 }}/>
+            type="number"
+            dataKey="dateTimestamp"
+            scale="time"
+            domain={[rangeStartDate.getTime(), rangeEndDate.getTime()]}
+            ticks={monthTicks}
+            tickFormatter={formatMonthTick}
+            label={{ value: 'Month', position: 'bottom', offset: 8 }}/>
           <YAxis
             type="number"
             dataKey="pace"
@@ -57,14 +123,7 @@ export default function PaceEvolutionChart({points}:PaceEvolutionPointProp){
               style: { textAnchor: 'middle' },
               offset: 0 
             }}/>
-          <Tooltip
-            labelFormatter={formatTooltipDateLabel}
-            formatter={(value) =>
-              typeof value === 'number'
-                ? [`${formatPaceSeconds(value)} /km`, 'Pace']
-                : value
-            }
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Line 
             type="monotone"
             dataKey="pace"

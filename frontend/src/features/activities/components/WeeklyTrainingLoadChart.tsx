@@ -3,11 +3,14 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 
 export type WeeklyTrainingLoadPoint = {
   weekStartDate: string,
+  weekStartTimestamp: number,
   totalLoad: number
 }
 
 type WeeklyTrainingLoadChartProps = {
   points: WeeklyTrainingLoadPoint[]
+  rangeStartDate: Date
+  rangeEndDate: Date
 }
 
 function formatWeekStartDateLabel(weekStartDate: string): string {
@@ -23,7 +26,17 @@ function formatTooltipWeekStartDateLabel(label: ReactNode): ReactNode {
     return formatWeekStartDateLabel(label)
   }
 
+  if (typeof label === 'number') {
+    return formatWeekStartDateLabel(new Date(label).toISOString().slice(0, 10))
+  }
+
   return label
+}
+
+function formatMonthTick(timestamp: number): string {
+  return new Intl.DateTimeFormat('nl-BE', {
+    month: 'short',
+  }).format(new Date(timestamp))
 }
 
 function formatDistanceInKilometers(distanceInMeters: number): string {
@@ -37,16 +50,37 @@ function formatDistanceTickInKilometers(distanceInMeters: number): string {
   return `${Math.round(distanceInMeters / 1000)}`
 }
 
-export default function WeeklyTrainingLoadChart({points}: WeeklyTrainingLoadChartProps){
+function getMonthTicks(startDate: Date, endDate: Date): number[] {
+  const ticks: number[] = []
+  const current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1))
+
+  while (current <= endDate) {
+    ticks.push(current.getTime())
+    current.setUTCMonth(current.getUTCMonth() + 1)
+  }
+
+  return ticks
+}
+
+export default function WeeklyTrainingLoadChart({
+  points,
+  rangeStartDate,
+  rangeEndDate,
+}: WeeklyTrainingLoadChartProps){
+  const monthTicks = getMonthTicks(rangeStartDate, rangeEndDate)
 
   return (
     <ResponsiveContainer width="100%" height={320}>
       <LineChart data={points} margin={{ top: 20, right: 20, bottom: 36, left: 28 }}>
         <CartesianGrid />
         <XAxis
-          dataKey="weekStartDate"
-          tickFormatter={formatWeekStartDateLabel}
-          label={{ value: 'Week', position: 'bottom', offset: 8 }}/>
+          type="number"
+          dataKey="weekStartTimestamp"
+          scale="time"
+          domain={[rangeStartDate.getTime(), rangeEndDate.getTime()]}
+          ticks={monthTicks}
+          tickFormatter={formatMonthTick}
+          label={{ value: 'Month', position: 'bottom', offset: 8 }}/>
         <YAxis
           type="number"
           dataKey="totalLoad"

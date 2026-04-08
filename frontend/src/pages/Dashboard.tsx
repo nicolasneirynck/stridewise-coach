@@ -1,42 +1,50 @@
 import useSWR from "swr"
 import {
-  requestRunningGraphData,
   requestTargetHeartRateActivities,
   requestWeeklyLoadData,
 } from "../features/activities/api/activities"
-import HeartRateVsPaceChart from "../features/activities/components/HeartRateVsPaceChart"
 import WeeklyTrainingLoadChart from "../features/activities/components/WeeklyTrainingLoadChart"
 import PaceEvolutionChart from "../features/activities/components/PaceEvolutionChart"
+import HeartRateRangeSlider from "../features/activities/components/HeartRateRangeSlider"
+import { useEffect, useState } from "react"
+
+type TimeRangeOption = 'lastYear' | 'last6Months' | 'last3Months'
+type ActivityNameFilterOption = 'General Aerobic Run' | 'Endurance Run' | 'Recovery Run'
+
+const TIME_RANGE_LABELS: Record<TimeRangeOption, string> = {
+  lastYear: 'Last year',
+  last6Months: 'Last 6 months',
+  last3Months: 'Last 3 months',
+}
+
+const ACTIVITY_NAME_FILTER_OPTIONS: ActivityNameFilterOption[] = [
+  'General Aerobic Run',
+  'Endurance Run',
+  'Recovery Run',
+]
+
+function getRangeStartDate(range: TimeRangeOption, now: Date): Date {
+  const start = new Date(now)
+
+  if (range === 'lastYear') {
+    start.setUTCFullYear(start.getUTCFullYear() - 1)
+    return start
+  }
+
+  if (range === 'last6Months') {
+    start.setUTCMonth(start.getUTCMonth() - 6)
+    return start
+  }
+
+  start.setUTCMonth(start.getUTCMonth() - 3)
+  return start
+}
 
 export function Dashboard() {
-  const {
-    data: runningGraph,
-    error,
-    isLoading,
-  } = useSWR('activities/running-graph',requestRunningGraphData)
-
-  const chartPoints = runningGraph === undefined ? [] : runningGraph.map(activity => ({
-    pace: activity.averagePace,
-    heartRate: activity.averageHeartRate,
-    startDate: activity.startDate
-  }))
-
-  const renderChartSection = () => {
-    if (isLoading){
-      return (<p>still loading</p>)
-    }
-    if (error){
-      return (<p>{error.message}</p>)
-    }
-    if (chartPoints && chartPoints.length === 0){
-      return (<p>No running graph data yet</p>)
-    }
-    return <div>
-              <h3>Heart rate vs pace</h3>
-              <p>Each point represents one run.</p>
-              <HeartRateVsPaceChart points={chartPoints} />
-            </div>
-  }
+  const initialHeartRateInterval = { minHeartRate: 140, maxHeartRate: 150 }
+  const weeklyLoadRangeEndDate = new Date()
+  const weeklyLoadRangeStartDate = new Date(weeklyLoadRangeEndDate)
+  weeklyLoadRangeStartDate.setUTCFullYear(weeklyLoadRangeStartDate.getUTCFullYear() - 1)
 
   const {
     data: weeklyLoad,
@@ -44,10 +52,19 @@ export function Dashboard() {
     isLoading: isWeeklyLoadLoading,
   } = useSWR('activities/weekly-load',requestWeeklyLoadData)
 
-   const linePoints = weeklyLoad === undefined ? [] : weeklyLoad.map(load => ({
-    weekStartDate: load.weekStartDate,
-    totalLoad: load.totalLoad,
-  }))
+   const linePoints = weeklyLoad === undefined
+    ? []
+    : weeklyLoad
+        .filter((load) => {
+          const weekStartDate = new Date(`${load.weekStartDate}T00:00:00.000Z`)
+
+          return weekStartDate >= weeklyLoadRangeStartDate && weekStartDate <= weeklyLoadRangeEndDate
+        })
+        .map((load) => ({
+          weekStartDate: load.weekStartDate,
+          weekStartTimestamp: new Date(`${load.weekStartDate}T00:00:00.000Z`).getTime(),
+          totalLoad: load.totalLoad,
+        }))
 
   const renderWeeklyLoadSection = () => {
     if (isWeeklyLoadLoading){
@@ -59,43 +76,170 @@ export function Dashboard() {
     if (weeklyLoad && weeklyLoad.length === 0){
       return (<p>No weekly training load data yet</p>)
     }
-    return <div>
+    return <div className="mt-14 border-t border-stone-200 pt-10">
               <h3>Weekly training load</h3>
-              <WeeklyTrainingLoadChart points={linePoints}/>
+              <WeeklyTrainingLoadChart
+                points={linePoints}
+                rangeStartDate={weeklyLoadRangeStartDate}
+                rangeEndDate={weeklyLoadRangeEndDate}
+              />
             </div>
 
   }
+
+  const [heartRateInterval, setHeartRateInterval] = useState<{ minHeartRate: number; maxHeartRate: number }>(initialHeartRateInterval)
+  const [draftHeartRateInterval, setDraftHeartRateInterval] = useState<{ minHeartRate: number; maxHeartRate: number }>(initialHeartRateInterval)
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRangeOption>('last6Months')
+  const [selectedActivityNameFilters, setSelectedActivityNameFilters] = useState<ActivityNameFilterOption[]>([])
+  const isHeartRateRangeInvalid = heartRateInterval.minHeartRate > heartRateInterval.maxHeartRate
+  const rangeEndDate = new Date()
+  const rangeStartDate = getRangeStartDate(selectedTimeRange, rangeEndDate)
+
+  useEffect(() => {
+    setDraftHeartRateInterval(heartRateInterval)
+  }, [heartRateInterval])
 
   const {
     data: targetHeartRateActivities,
     error: targetHeartRateError,
     isLoading: isTargetHeartRateLoading,
-  } = useSWR('activities/running-activities/target-heart-rate', requestTargetHeartRateActivities)
+  } = useSWR(
+    ['activities/running-activities/target-heart-rate', heartRateInterval.minHeartRate, heartRateInterval.maxHeartRate],
+    () => requestTargetHeartRateActivities(heartRateInterval)
+  )
+
 
   const paceEvolutionPoints = targetHeartRateActivities === undefined
     ? []
-    : targetHeartRateActivities.map((activity) => ({
-        id: activity.id,
-        date: activity.startDate,
-        pace: activity.averagePace,
-      }))
+    : targetHeartRateActivities
+        .filter((activity) => {
+          const activityDate = new Date(activity.startDate)
+          const matchesSelectedNameFilter =
+            selectedActivityNameFilters.length === 0 ||
+            selectedActivityNameFilters.some((filterOption) =>
+              activity.name.includes(filterOption)
+            )
+
+          return (
+            activityDate >= rangeStartDate &&
+            activityDate <= rangeEndDate &&
+            matchesSelectedNameFilter
+          )
+        })
+        .map((activity) => ({
+          id: activity.id,
+          name: activity.name,
+          date: activity.startDate,
+          dateTimestamp: new Date(activity.startDate).getTime(),
+          averageHeartRate: activity.averageHeartRate,
+          pace: activity.averagePace,
+          distance: activity.distance,
+        }))
 
   const renderTargetHeartRateSection = () => {
-    if (isTargetHeartRateLoading) {
-      return <p>loading</p>
+    let content
+
+    if (isHeartRateRangeInvalid) {
+      content = null
+    } else if (isTargetHeartRateLoading) {
+      content = <p>loading</p>
+    } else if (targetHeartRateError) {
+      content = <p>{targetHeartRateError.message}</p>
+    } else if (paceEvolutionPoints.length === 0) {
+      content = <p>No target heart rate activities yet</p>
+    } else {
+      content = (
+        <PaceEvolutionChart
+          points={paceEvolutionPoints}
+          rangeStartDate={rangeStartDate}
+          rangeEndDate={rangeEndDate}
+        />
+      )
     }
 
-    if (targetHeartRateError) {
-      return <p>{targetHeartRateError.message}</p>
+    const toggleActivityNameFilter = (filterOption: ActivityNameFilterOption) => {
+      setSelectedActivityNameFilters((currentFilters) =>
+        currentFilters.includes(filterOption)
+          ? currentFilters.filter((currentFilter) => currentFilter !== filterOption)
+          : [...currentFilters, filterOption]
+      )
     }
 
-    if (paceEvolutionPoints.length === 0) {
-      return <p>No target heart rate activities yet</p>
-    }
-
-    return <div>
-              <h3>Target heart rate activities</h3>
-              <PaceEvolutionChart points={paceEvolutionPoints}/>
+    return <div className="space-y-6">
+              <div>
+                <h3>Target heart rate activities</h3>
+                <p className="text-sm text-zinc-600">
+                  Analyze pace evolution for a selected heart rate zone.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 shadow-sm">
+                <div className="grid gap-5 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                      Filter by period
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(['lastYear', 'last6Months', 'last3Months'] as TimeRangeOption[]).map((range) => (
+                        <button
+                          key={range}
+                          type="button"
+                          onClick={() => setSelectedTimeRange(range)}
+                          className={
+                            selectedTimeRange === range
+                              ? "rounded-md bg-orange-500 px-3 py-2 text-sm text-white"
+                              : "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-700"
+                          }
+                        >
+                          {TIME_RANGE_LABELS[range]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                      Filter by workout type
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ACTIVITY_NAME_FILTER_OPTIONS.map((filterOption) => (
+                        <button
+                          key={filterOption}
+                          type="button"
+                          onClick={() => toggleActivityNameFilter(filterOption)}
+                          className={
+                            selectedActivityNameFilters.includes(filterOption)
+                              ? "rounded-md bg-zinc-900 px-3 py-2 text-sm text-white"
+                              : "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-700"
+                          }
+                        >
+                          {filterOption}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                      Filter by heart rate range
+                    </p>
+                    <HeartRateRangeSlider
+                      min={80}
+                      max={200}
+                      value={[draftHeartRateInterval.minHeartRate, draftHeartRateInterval.maxHeartRate]}
+                      onChange={([minHeartRate, maxHeartRate]) =>
+                        setDraftHeartRateInterval({ minHeartRate, maxHeartRate })
+                      }
+                      onCommit={([minHeartRate, maxHeartRate]) =>
+                        setHeartRateInterval({ minHeartRate, maxHeartRate })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+              {isHeartRateRangeInvalid && (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  Minimum heart rate must be lower than or equal to maximum heart rate.
+                </p>
+              )}
+              <div>{content}</div>
             </div>
   }
 
@@ -107,9 +251,8 @@ export function Dashboard() {
       <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-950">
         Dashboard
       </h1>
-      {renderChartSection()}
-      {renderWeeklyLoadSection()}
       {renderTargetHeartRateSection()}
+      {renderWeeklyLoadSection()}
     </section>
   )
 }

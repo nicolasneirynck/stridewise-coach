@@ -32,6 +32,7 @@ export type WeeklyLoadDataPoint = {
 
 export type RunningActivityAnalysis = {
   id: number
+  name: string
   startDate: string
   averageHeartRate: number
   averagePace: number
@@ -113,13 +114,23 @@ export async function requestStoredActivities(filter:ActivityTypeFilter = 'all')
     }
 }
 
-export async function requestTargetHeartRateActivities(): Promise<RunningActivityAnalysis[]> {
+export async function requestTargetHeartRateActivities({
+  minHeartRate,
+  maxHeartRate,
+}: {
+  minHeartRate: number
+  maxHeartRate: number
+}): Promise<RunningActivityAnalysis[]> {
   const authToken = getAuthToken()
 
   try {
     const response = await axios.get<RunningActivityAnalysis[]>(`${API_BASE_URL}/activities/running-activities/target-heart-rate`, {
       headers: {
         Authorization: `Bearer ${authToken}`,
+      },
+      params: {
+        minHeartRate,
+        maxHeartRate,
       },
     })
 
