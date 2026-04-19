@@ -1,4 +1,5 @@
 import * as argon2 from 'argon2';
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/mysql2';
 import * as mysql from 'mysql2/promise';
 import { users } from './schema';
@@ -30,22 +31,37 @@ async function seed(): Promise<void> {
   try {
     console.log('Seeding users...');
 
-    await db.insert(users).values([
-      {
-        email: 'user@stridewise.local',
-        firstName: 'Regular',
-        lastName: 'User',
-        passwordHash: await hashPassword('User123!'),
-        roles: [Role.USER],
-      },
-      {
-        email: 'admin@stridewise.local',
-        firstName: 'Admin',
-        lastName: 'User',
-        passwordHash: await hashPassword('Admin123!'),
-        roles: [Role.ADMIN],
-      },
-    ]);
+    await db
+      .insert(users)
+      .values([
+        {
+          email: 'user@stridewise.local',
+          firstName: 'Regular',
+          lastName: 'User',
+          passwordHash: await hashPassword('User123!'),
+          roles: [Role.USER],
+          maxHeartRate: 188,
+          restingHeartRate: 56,
+        },
+        {
+          email: 'admin@stridewise.local',
+          firstName: 'Admin',
+          lastName: 'User',
+          passwordHash: await hashPassword('Admin123!'),
+          roles: [Role.ADMIN],
+          maxHeartRate: 188,
+          restingHeartRate: 56,
+        },
+      ])
+      .onDuplicateKeyUpdate({
+        set: {
+          passwordHash: sql`values(password_hash)`,
+          firstName: sql`values(first_name)`,
+          lastName: sql`values(last_name)`,
+          roles: sql`values(roles)`,
+          maxHeartRate: sql`values(max_heart_rate)`,
+        },
+      });
 
     console.log('Seed complete.');
     console.log('User: user@stridewise.local / User123!');

@@ -26,6 +26,10 @@ export class StravaActivityResponseDTO {
 export class StravaConnectionStatusResponseDTO {
   @Expose()
   athleteId: number | null;
+
+  @Expose()
+  athleteName: string | null;
+
   @Expose()
   isConnected: boolean;
 }

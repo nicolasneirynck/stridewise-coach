@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AuthConfig } from '../../config/configuration';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 @Injectable()
 export class StravaOAuthService {
@@ -23,19 +24,23 @@ export class StravaOAuthService {
     return `https://www.strava.com/oauth/authorize?${params.toString()}`;
   }
 
-  createOAuthState(userId: number): string {
-    const authConfig = this.configService.getOrThrow<AuthConfig>('auth');
-    return Buffer.from(`${userId}:${authConfig.jwt.secret}`).toString(
-      'base64url',
-    ); // -> '42:<my-jwt-secret>'
-  } // Buffer.from(...) is being used to turn the plain string into bytes so Node can encode it as base64url
-  // They do it because raw strings can contain characters that are awkward in query params, while base64url gives a compact URL-safe value for state
-  // This is encoding, not encryption. It hides the string format a little, but anyone who gets the value can decode it. So this does not make the JWT secret “safe to expose” in the OAuth URL. That’s one reason this implementation is not ideal for production.
-  // Buffer.from = convert string to bytes
-  // toString('base64url') = encode those bytes into a URL-safe string
+  private createOAuthState(userId: number): string {
+    const payload = String(userId);
+    const signature = this.signOAuthStatePayload(payload);
+
+    return `${payload}.${signature}`;
+  }
+
+  private signOAuthStatePayload(payload: string): string {
+    const authConfig = this.getAuthConfig();
+
+    return createHmac('sha256', authConfig.jwt.secret)
+      .update(payload)
+      .digest('base64url');
+  }
 
   getFrontendStravaErrorUrl(reason: string): string {
-    const frontendUrl = this.configService.getOrThrow<string>('frontendUrl');
+    const frontendUrl = this.getFrontendUrl();
     const url = new URL('/strava/callback', frontendUrl);
 
     url.searchParams.set('reason', reason);
@@ -44,7 +49,7 @@ export class StravaOAuthService {
   }
 
   getFrontendStravaPageUrl() {
-    const frontendUrl = this.configService.getOrThrow<string>('frontendUrl');
+    const frontendUrl = this.getFrontendUrl();
     return new URL('/strava', frontendUrl).toString();
   }
 
@@ -53,20 +58,38 @@ export class StravaOAuthService {
       throw new BadRequestException('Missing Strava OAuth state');
     }
 
-    const authConfig = this.configService.getOrThrow<AuthConfig>('auth');
-    const decodedState = Buffer.from(state, 'base64url').toString('utf8');
-    const [userId, secret] = decodedState.split(':');
+    const [payload, signature] = state.split('.');
 
-    if (!userId || secret !== authConfig.jwt.secret) {
+    if (!payload || !signature) {
       throw new BadRequestException('Invalid Strava OAuth state');
     }
 
-    const parsedUserId = Number(userId);
+    const expectedSignature = this.signOAuthStatePayload(payload);
+
+    const providedBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+
+    if (
+      providedBuffer.length !== expectedBuffer.length ||
+      !timingSafeEqual(providedBuffer, expectedBuffer)
+    ) {
+      throw new BadRequestException('Invalid Strava OAuth state');
+    }
+
+    const parsedUserId = Number(payload);
 
     if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
       throw new BadRequestException('Invalid Strava OAuth state');
     }
 
     return parsedUserId;
+  }
+
+  private getFrontendUrl(): string {
+    return this.configService.getOrThrow<string>('frontendUrl');
+  }
+
+  private getAuthConfig(): AuthConfig {
+    return this.configService.getOrThrow<AuthConfig>('auth');
   }
 }

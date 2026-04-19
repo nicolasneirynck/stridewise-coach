@@ -21,6 +21,8 @@ export const users = mysqlTable(
     lastName: varchar('last_name', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }).notNull(),
     roles: json('roles').$type<Role[]>().notNull(),
+    maxHeartRate: int('max_heart_rate'),
+    restingHeartRate: int('resting_heart_rate'),
   },
   (table) => [uniqueIndex('idx_user_email_unique').on(table.email)],
 );
@@ -65,6 +67,8 @@ export const strava_connections = mysqlTable(
       .notNull()
       .references(() => users.id),
     strava_athlete_id: int('strava_athlete_id').notNull(),
+    strava_first_name: varchar('strava_first_name', { length: 255 }),
+    strava_last_name: varchar('strava_last_name', { length: 255 }),
     access_token: varchar('access_token', { length: 255 }).notNull(),
     refresh_token: varchar('refresh_token', { length: 255 }).notNull(),
     expires_at: int('expires_at').notNull(),

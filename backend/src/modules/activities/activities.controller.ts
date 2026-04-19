@@ -9,7 +9,7 @@ import {
   ImportStravaActivitiesResponseDTO,
   RunningActivityAnalysisDTO,
   RunningActivityGraphPointDTO,
-  WeeklyLoadDTO,
+  WeeklyRunningVolumeDTO,
 } from './activities.dto';
 
 @Controller('activities')
@@ -31,9 +31,11 @@ export class ActivitiesController {
     return this.activitiesService.getRunningActivityGraphData(user);
   }
 
-  @Get('weekly-load')
-  async getWeeklyLoad(@CurrentUser() user: Session): Promise<WeeklyLoadDTO[]> {
-    return this.activitiesService.getWeeklyLoad(user);
+  @Get('weekly-running-volume')
+  async getWeeklyRunningVolume(
+    @CurrentUser() user: Session,
+  ): Promise<WeeklyRunningVolumeDTO[]> {
+    return this.activitiesService.getWeeklyRunningVolume(user);
   }
 
   @Get('running-activities/target-heart-rate')

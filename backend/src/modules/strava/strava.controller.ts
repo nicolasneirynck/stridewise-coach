@@ -1,4 +1,11 @@
-import { Controller, Get, Query, Redirect } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Delete,
+  Get,
+  Query,
+  Redirect,
+} from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
 import { StravaService } from './strava.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -12,8 +19,8 @@ import { StravaOAuthService } from './strava-oauth.service';
 @Controller('strava')
 export class StravaController {
   constructor(
-    private readonly stravaService: StravaService,
     private readonly stravaOAuthService: StravaOAuthService,
+    private readonly stravaService: StravaService,
   ) {}
 
   @Get('connect-url')
@@ -49,11 +56,14 @@ export class StravaController {
       return {
         url: this.stravaOAuthService.getFrontendStravaPageUrl(),
       };
-    } catch {
+    } catch (error) {
+      const reason =
+        error instanceof BadRequestException
+          ? 'invalid_state'
+          : 'token_exchange_failed';
+
       return {
-        url: this.stravaOAuthService.getFrontendStravaErrorUrl(
-          'token_exchange_failed',
-        ),
+        url: this.stravaOAuthService.getFrontendStravaErrorUrl(reason),
       };
     }
   }
@@ -63,6 +73,13 @@ export class StravaController {
     @CurrentUser() user: Session,
   ): Promise<StravaConnectionStatusResponseDTO> {
     return this.stravaService.getStravaConnectionStatus(user.id);
+  }
+
+  @Delete('connection')
+  async disconnectCurrentUserStravaConnection(
+    @CurrentUser() user: Session,
+  ): Promise<void> {
+    return await this.stravaService.disconnectStravaConnection(user.id);
   }
 
   @Get('activities')

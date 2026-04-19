@@ -1,4 +1,4 @@
-import { Expose } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
 import { IsNumber, Min } from 'class-validator';
 
 export type ActivityType = 'run' | 'hike' | 'strengthtraining' | 'bike';
@@ -61,17 +61,82 @@ export class RunningActivityGraphPointDTO {
   averageHeartRate: number | null;
 }
 
-export class WeeklyLoadDTO {
+export class WeeklyRunningVolumeDTO {
   @Expose()
   weekStartDate: string;
 
   @Expose()
-  totalLoad: number;
+  totalRunningDistance: number;
+
+  @Expose()
+  runCount: number;
+
+  @Expose()
+  longestRunDistance: number;
+}
+
+export type WeeklyRunningComparisonResult = 'increase' | 'decrease' | 'same';
+
+export class WeeklyRunningProgressionDTO {
+  @Expose()
+  weekStartDate: string;
+
+  @Expose()
+  currentWeekRunningDistance: number;
+
+  @Expose()
+  previousWeekRunningDistance: number;
+
+  @Expose()
+  percentageDifference: number | null;
+
+  @Expose()
+  comparisonResult: WeeklyRunningComparisonResult | null;
+}
+
+export class LongestRunProgressionDTO {
+  @Expose()
+  weekStartDate: string;
+
+  @Expose()
+  currentWeekLongestRunDistance: number;
+
+  @Expose()
+  previousFourWeekLongestRunBaseline: number | null;
+
+  @Expose()
+  percentageDifference: number | null;
+
+  @Expose()
+  hasSufficientHistory: boolean;
+}
+
+export class IntensityDistributionDTO {
+  @Expose()
+  weekStartDate: string;
+
+  @Expose()
+  lowIntensityCount: number;
+
+  @Expose()
+  aboveZoneTwoCount: number;
+
+  @Expose()
+  totalCount: number;
+
+  @Expose()
+  lowIntensityPercentage: number;
+
+  @Expose()
+  aboveZoneTwoPercentage: number;
 }
 
 export class RunningActivityAnalysisDTO {
   @Expose()
   id: number;
+
+  @Expose()
+  name: string;
 
   @Expose()
   startDate: string;
@@ -90,10 +155,12 @@ export class RunningActivityAnalysisDTO {
 }
 
 export class HeartRateIntervalInputDTO {
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   minHeartRate: number;
 
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   maxHeartRate: number;

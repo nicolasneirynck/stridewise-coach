@@ -93,6 +93,8 @@ export class StravaService {
       .values({
         user_id: userId,
         strava_athlete_id: tokenResponse.athlete.id,
+        strava_first_name: tokenResponse.athlete.firstname,
+        strava_last_name: tokenResponse.athlete.lastname,
         access_token: tokenResponse.access_token,
         refresh_token: tokenResponse.refresh_token,
         expires_at: tokenResponse.expires_at,
@@ -100,6 +102,8 @@ export class StravaService {
       .onDuplicateKeyUpdate({
         set: {
           strava_athlete_id: tokenResponse.athlete.id,
+          strava_first_name: tokenResponse.athlete.firstname,
+          strava_last_name: tokenResponse.athlete.lastname,
           access_token: tokenResponse.access_token,
           refresh_token: tokenResponse.refresh_token,
           expires_at: tokenResponse.expires_at,
@@ -116,7 +120,7 @@ export class StravaService {
     });
 
     if (stravaConnection === undefined) {
-      return { isConnected: false, athleteId: null };
+      return { isConnected: false, athleteId: null, athleteName: null };
     }
 
     if (
@@ -128,7 +132,25 @@ export class StravaService {
         'Stored Strava connection is invalid/incomplete',
       );
 
-    return { isConnected: true, athleteId: stravaConnection.strava_athlete_id };
+    const athleteName = [
+      stravaConnection.strava_first_name,
+      stravaConnection.strava_last_name,
+    ]
+      .filter((namePart): namePart is string => Boolean(namePart?.trim()))
+      .join(' ')
+      .trim();
+
+    return {
+      isConnected: true,
+      athleteId: stravaConnection.strava_athlete_id,
+      athleteName: athleteName.length > 0 ? athleteName : null,
+    };
+  }
+
+  async disconnectStravaConnection(userId: number): Promise<void> {
+    await this.db
+      .delete(strava_connections)
+      .where(eq(strava_connections.user_id, userId));
   }
 
   private async updateConnectionTokens(
@@ -138,6 +160,8 @@ export class StravaService {
     await this.db
       .update(strava_connections)
       .set({
+        strava_first_name: stravaTokenResponse.athlete.firstname,
+        strava_last_name: stravaTokenResponse.athlete.lastname,
         access_token: stravaTokenResponse.access_token,
         refresh_token: stravaTokenResponse.refresh_token,
         expires_at: stravaTokenResponse.expires_at,

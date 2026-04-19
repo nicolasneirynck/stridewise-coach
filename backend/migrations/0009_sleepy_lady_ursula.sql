@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `resting_heart_rate` int;

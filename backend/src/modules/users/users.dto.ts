@@ -13,6 +13,12 @@ export class PublicUserResponseDTO {
 
   @Expose()
   email: string;
+
+  @Expose()
+  maxHeartRate: number | null;
+
+  @Expose()
+  restingHeartRate: number | null;
 }
 
 export class RegisterUserRequestDTO {

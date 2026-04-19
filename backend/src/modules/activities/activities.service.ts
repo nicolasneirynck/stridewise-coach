@@ -3,7 +3,7 @@ import {
   type DatabaseProvider,
   InjectDrizzle,
 } from '../../database/drizzle.provider';
-import { activities } from '../../database/schema';
+import { activities, users } from '../../database/schema';
 import type { Session } from '../../common/types/auth';
 import { eq, desc, and, sql, asc } from 'drizzle-orm';
 import {
@@ -14,9 +14,45 @@ import {
   ImportStravaActivitiesResponseDTO,
   RunningActivityAnalysisDTO,
   RunningActivityGraphPointDTO,
-  WeeklyLoadDTO,
+  WeeklyRunningVolumeDTO,
+  WeeklyRunningProgressionDTO,
+  type WeeklyRunningComparisonResult,
+  LongestRunProgressionDTO,
+  IntensityDistributionDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
+
+type WeeklyRunningVolumeSummary = {
+  totalRunningDistance: number;
+  runCount: number;
+  longestRunDistance: number;
+};
+
+const DEFAULT_MAX_HEART_RATE = 190;
+const DEFAULT_RESTING_HEART_RATE = 60;
+
+type HeartRateZone = {
+  lowerBound: number;
+  upperBound: number;
+};
+
+type HeartRateZones = {
+  zone1: HeartRateZone;
+  zone2: HeartRateZone;
+  zone3: HeartRateZone;
+  zone4: HeartRateZone;
+  zone5: HeartRateZone;
+};
+
+type UserHeartRateProfile = {
+  maxHeartRate: number;
+  restingHeartRate: number;
+};
+
+type IntensityDistributionSummary = {
+  lowIntensityCount: number;
+  aboveZoneTwoCount: number;
+};
 
 @Injectable()
 export class ActivitiesService {
@@ -60,7 +96,9 @@ export class ActivitiesService {
     ).map((activity) => this.toRunningActivityGraphPoint(activity));
   }
 
-  async getWeeklyLoad(user: Session): Promise<WeeklyLoadDTO[]> {
+  async getWeeklyRunningVolume(
+    user: Session,
+  ): Promise<WeeklyRunningVolumeDTO[]> {
     const storedActivities = await this.db.query.activities.findMany({
       columns: { start_date: true, distance: true },
       where: and(
@@ -69,16 +107,28 @@ export class ActivitiesService {
       ),
     });
 
-    const weeklyTotals = new Map<string, number>();
+    const weeklyVolumes = new Map<string, WeeklyRunningVolumeSummary>();
 
     for (const activity of storedActivities) {
       const weekStartDate = this.getWeekStartDate(activity.start_date);
-      const currentTotal = weeklyTotals.get(weekStartDate) ?? 0;
+      const currentVolume = weeklyVolumes.get(weekStartDate) ?? {
+        totalRunningDistance: 0,
+        runCount: 0,
+        longestRunDistance: 0,
+      };
 
-      weeklyTotals.set(weekStartDate, currentTotal + activity.distance);
+      weeklyVolumes.set(weekStartDate, {
+        totalRunningDistance:
+          currentVolume.totalRunningDistance + activity.distance,
+        runCount: currentVolume.runCount + 1,
+        longestRunDistance: Math.max(
+          currentVolume.longestRunDistance,
+          activity.distance,
+        ),
+      });
     }
 
-    const sortedWeeks = Array.from(weeklyTotals.keys()).sort();
+    const sortedWeeks = Array.from(weeklyVolumes.keys()).sort();
 
     if (sortedWeeks.length === 0) {
       return [];
@@ -87,8 +137,217 @@ export class ActivitiesService {
     return this.fillMissingWeeks(
       sortedWeeks[0],
       sortedWeeks[sortedWeeks.length - 1],
-      weeklyTotals,
+      weeklyVolumes,
     );
+  }
+
+  async getWeeklyRunningProgression(
+    user: Session,
+  ): Promise<WeeklyRunningProgressionDTO[]> {
+    const weeklyVolumes = await this.getWeeklyRunningVolume(user);
+
+    return weeklyVolumes.map((weeklyVolume, index) => {
+      const previousWeek = index > 0 ? weeklyVolumes[index - 1] : null;
+
+      const currentWeekRunningDistance = weeklyVolume.totalRunningDistance;
+      const previousWeekRunningDistance =
+        previousWeek?.totalRunningDistance ?? 0;
+
+      const percentageDifference =
+        previousWeek === null || previousWeekRunningDistance === 0
+          ? null
+          : ((currentWeekRunningDistance - previousWeekRunningDistance) /
+              previousWeekRunningDistance) *
+            100;
+
+      const comparisonResult: WeeklyRunningComparisonResult | null =
+        previousWeek === null
+          ? null
+          : currentWeekRunningDistance > previousWeekRunningDistance
+            ? 'increase'
+            : currentWeekRunningDistance < previousWeekRunningDistance
+              ? 'decrease'
+              : 'same';
+
+      return {
+        weekStartDate: weeklyVolume.weekStartDate,
+        currentWeekRunningDistance,
+        previousWeekRunningDistance,
+        percentageDifference,
+        comparisonResult,
+      };
+    });
+  }
+
+  async getLongestRunProgression(
+    user: Session,
+  ): Promise<LongestRunProgressionDTO[]> {
+    const weeklyVolumes = await this.getWeeklyRunningVolume(user);
+
+    return weeklyVolumes.map((weeklyVolume, index) => {
+      const previousFourWeeks =
+        index >= 4 ? weeklyVolumes.slice(index - 4, index) : [];
+
+      const hasSufficientHistory = previousFourWeeks.length === 4;
+      const previousFourWeekLongestRunBaseline = hasSufficientHistory
+        ? Math.max(...previousFourWeeks.map((week) => week.longestRunDistance))
+        : null;
+
+      const currentWeekLongestRunDistance = weeklyVolume.longestRunDistance;
+
+      const percentageDifference =
+        previousFourWeekLongestRunBaseline === null ||
+        previousFourWeekLongestRunBaseline === 0
+          ? null
+          : ((currentWeekLongestRunDistance -
+              previousFourWeekLongestRunBaseline) /
+              previousFourWeekLongestRunBaseline) *
+            100;
+
+      return {
+        weekStartDate: weeklyVolume.weekStartDate,
+        currentWeekLongestRunDistance,
+        previousFourWeekLongestRunBaseline,
+        percentageDifference,
+        hasSufficientHistory,
+      };
+    });
+  }
+
+  async getIntensityDistribution(
+    user: Session,
+  ): Promise<IntensityDistributionDTO[]> {
+    const heartRateZones = await this.getUserHeartRateZones(user);
+    const zoneTwoUpperBound = heartRateZones.zone2.upperBound;
+
+    const storedActivities = await this.db.query.activities.findMany({
+      where: eq(activities.user_id, user.id),
+    });
+
+    const runningActivitiesWithHeartRate =
+      this.filterRunningActivitiesWithUsableHeartRate(storedActivities);
+
+    const weeklyIntensityDistributions = new Map<
+      string,
+      IntensityDistributionSummary
+    >();
+
+    for (const activity of runningActivitiesWithHeartRate) {
+      const weekStartDate = this.getWeekStartDate(activity.start_date);
+      const currentDistribution = weeklyIntensityDistributions.get(
+        weekStartDate,
+      ) ?? {
+        lowIntensityCount: 0,
+        aboveZoneTwoCount: 0,
+      };
+
+      if (
+        this.isLowIntensityHeartRate(
+          activity.average_heartrate!,
+          zoneTwoUpperBound,
+        )
+      ) {
+        currentDistribution.lowIntensityCount += 1;
+      } else {
+        currentDistribution.aboveZoneTwoCount += 1;
+      }
+
+      weeklyIntensityDistributions.set(weekStartDate, currentDistribution);
+    }
+
+    if (weeklyIntensityDistributions.size === 0) {
+      return [];
+    }
+
+    return Array.from(weeklyIntensityDistributions.entries())
+      .sort(([firstWeek], [secondWeek]) => firstWeek.localeCompare(secondWeek))
+      .map(([weekStartDate, distribution]) =>
+        this.toIntensityDistributionResponse(weekStartDate, distribution),
+      );
+  }
+
+  private toIntensityDistributionResponse(
+    weekStartDate: string,
+    distribution: IntensityDistributionSummary,
+  ): IntensityDistributionDTO {
+    const totalCount =
+      distribution.lowIntensityCount + distribution.aboveZoneTwoCount;
+
+    const lowIntensityPercentage =
+      totalCount === 0
+        ? 0
+        : (distribution.lowIntensityCount / totalCount) * 100;
+
+    const aboveZoneTwoPercentage =
+      totalCount === 0
+        ? 0
+        : (distribution.aboveZoneTwoCount / totalCount) * 100;
+
+    return {
+      weekStartDate,
+      lowIntensityCount: distribution.lowIntensityCount,
+      aboveZoneTwoCount: distribution.aboveZoneTwoCount,
+      totalCount,
+      lowIntensityPercentage,
+      aboveZoneTwoPercentage,
+    };
+  }
+
+  private async getUserHeartRateProfile(
+    user: Session,
+  ): Promise<UserHeartRateProfile> {
+    const storedUser = await this.db.query.users.findFirst({
+      columns: { maxHeartRate: true, restingHeartRate: true },
+      where: eq(users.id, user.id),
+    });
+
+    return {
+      maxHeartRate: storedUser?.maxHeartRate ?? DEFAULT_MAX_HEART_RATE,
+      restingHeartRate:
+        storedUser?.restingHeartRate ?? DEFAULT_RESTING_HEART_RATE,
+    };
+  }
+
+  private async getUserHeartRateZones(user: Session): Promise<HeartRateZones> {
+    const heartRateProfile = await this.getUserHeartRateProfile(user);
+
+    return this.calculateHeartRateZones(
+      heartRateProfile.maxHeartRate,
+      heartRateProfile.restingHeartRate,
+    );
+  }
+
+  private calculateHeartRateZones(
+    maxHeartRate: number,
+    restingHeartRate: number,
+  ): HeartRateZones {
+    const heartRateReserve = maxHeartRate - restingHeartRate;
+
+    const calculateBoundary = (percentage: number): number =>
+      Math.round(restingHeartRate + heartRateReserve * percentage);
+
+    return {
+      zone1: {
+        lowerBound: calculateBoundary(0.5),
+        upperBound: calculateBoundary(0.6),
+      },
+      zone2: {
+        lowerBound: calculateBoundary(0.6),
+        upperBound: calculateBoundary(0.7),
+      },
+      zone3: {
+        lowerBound: calculateBoundary(0.7),
+        upperBound: calculateBoundary(0.8),
+      },
+      zone4: {
+        lowerBound: calculateBoundary(0.8),
+        upperBound: calculateBoundary(0.9),
+      },
+      zone5: {
+        lowerBound: calculateBoundary(0.9),
+        upperBound: calculateBoundary(1),
+      },
+    };
   }
 
   private getWeekStartDate(date: Date): string {
@@ -105,9 +364,9 @@ export class ActivitiesService {
   private fillMissingWeeks(
     firstWeek: string,
     lastWeek: string,
-    weeklyTotals: Map<string, number>,
-  ): WeeklyLoadDTO[] {
-    const result: WeeklyLoadDTO[] = [];
+    weeklyVolumes: Map<string, WeeklyRunningVolumeSummary>,
+  ): WeeklyRunningVolumeDTO[] {
+    const result: WeeklyRunningVolumeDTO[] = [];
 
     for (
       const currentWeek = new Date(`${firstWeek}T00:00:00.000Z`);
@@ -115,10 +374,17 @@ export class ActivitiesService {
       currentWeek.setUTCDate(currentWeek.getUTCDate() + 7)
     ) {
       const weekStartDate = currentWeek.toISOString().slice(0, 10);
+      const weeklyVolume = weeklyVolumes.get(weekStartDate) ?? {
+        totalRunningDistance: 0,
+        runCount: 0,
+        longestRunDistance: 0,
+      };
 
       result.push({
         weekStartDate,
-        totalLoad: weeklyTotals.get(weekStartDate) ?? 0,
+        totalRunningDistance: weeklyVolume.totalRunningDistance,
+        runCount: weeklyVolume.runCount,
+        longestRunDistance: weeklyVolume.longestRunDistance,
       });
     }
 
@@ -236,6 +502,7 @@ export class ActivitiesService {
 
   private toRunningActivityAnalysis(activity: {
     id: number;
+    activity_name: string;
     start_date: Date;
     average_heartrate: number | null;
     duration: number;
@@ -246,6 +513,7 @@ export class ActivitiesService {
 
     return {
       id: activity.id,
+      name: activity.activity_name,
       startDate: activity.start_date.toISOString(),
       averageHeartRate: activity.average_heartrate!,
       averagePace: paceInSecondsPerKilometer,
@@ -357,7 +625,7 @@ export class ActivitiesService {
         activity.average_heartrate !== undefined &&
         activity.average_heartrate > 0;
 
-      return hasAverageHeartrate && activity.activity_type == 'run';
+      return hasAverageHeartrate && activity.activity_type === 'run';
     });
   }
 
@@ -367,6 +635,13 @@ export class ActivitiesService {
     maxHeartRate: number,
   ): boolean {
     return heartRate >= minHeartRate && heartRate <= maxHeartRate;
+  }
+
+  private isLowIntensityHeartRate(
+    averageHeartRate: number,
+    zoneTwoUpperBound: number,
+  ): boolean {
+    return averageHeartRate <= zoneTwoUpperBound;
   }
 
   private filterRunningActivitiesInTargetHeartRateRange(

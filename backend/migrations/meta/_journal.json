@@ -50,6 +50,27 @@
       "when": 1774514490204,
       "tag": "0006_military_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1775779200000,
+      "tag": "0007_solid_strava_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1776584470075,
+      "tag": "0008_tricky_typhoid_mary",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1776584967776,
+      "tag": "0009_sleepy_lady_ursula",
+      "breakpoints": true
     }
   ]
 }
