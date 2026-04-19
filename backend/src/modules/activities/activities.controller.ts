@@ -10,6 +10,7 @@ import {
   RunningActivityAnalysisDTO,
   RunningActivityGraphPointDTO,
   WeeklyRunningVolumeDTO,
+  BaseTrainingScoreDTO,
 } from './activities.dto';
 
 @Controller('activities')
@@ -36,6 +37,13 @@ export class ActivitiesController {
     @CurrentUser() user: Session,
   ): Promise<WeeklyRunningVolumeDTO[]> {
     return this.activitiesService.getWeeklyRunningVolume(user);
+  }
+
+  @Post('base-training-score/recalculate')
+  async recalculateBaseTrainingScore(
+    @CurrentUser() user: Session,
+  ): Promise<BaseTrainingScoreDTO> {
+    return this.activitiesService.recalculateBaseTrainingScore(user);
   }
 
   @Get('running-activities/target-heart-rate')

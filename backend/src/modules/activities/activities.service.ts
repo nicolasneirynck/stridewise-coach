@@ -19,8 +19,11 @@ import {
   type WeeklyRunningComparisonResult,
   LongestRunProgressionDTO,
   IntensityDistributionDTO,
+  BaseTrainingScoreDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
+import { TrainingEvaluationService } from './training-evaluation.service';
+import { BaseTrainingScoringService } from './base-training-scoring.service';
 
 type WeeklyRunningVolumeSummary = {
   totalRunningDistance: number;
@@ -59,6 +62,8 @@ export class ActivitiesService {
   constructor(
     @InjectDrizzle() private readonly db: DatabaseProvider,
     private readonly stravaService: StravaService,
+    private readonly trainingEvaluationService: TrainingEvaluationService,
+    private readonly baseTrainingScoringService: BaseTrainingScoringService,
   ) {}
 
   async getActivities(
@@ -264,6 +269,31 @@ export class ActivitiesService {
       .map(([weekStartDate, distribution]) =>
         this.toIntensityDistributionResponse(weekStartDate, distribution),
       );
+  }
+
+  async recalculateBaseTrainingScore(
+    user: Session,
+  ): Promise<BaseTrainingScoreDTO> {
+    const weeklyRunningProgressions =
+      await this.getWeeklyRunningProgression(user);
+    const longestRunProgressions = await this.getLongestRunProgression(user);
+    const intensityDistributions = await this.getIntensityDistribution(user);
+
+    const componentRatings = [
+      this.trainingEvaluationService.evaluateIntensityDistribution(
+        intensityDistributions,
+      ),
+      this.trainingEvaluationService.evaluateWeeklyRunningVolumeProgression(
+        weeklyRunningProgressions,
+      ),
+      this.trainingEvaluationService.evaluateLongestRunProgression(
+        longestRunProgressions,
+      ),
+    ];
+
+    return this.baseTrainingScoringService.calculateBaseTrainingScore(
+      componentRatings,
+    );
   }
 
   private toIntensityDistributionResponse(

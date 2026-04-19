@@ -131,6 +131,76 @@ export class IntensityDistributionDTO {
   aboveZoneTwoPercentage: number;
 }
 
+export type ComponentRatingValue = 'Good' | 'Caution' | 'Needs attention';
+
+export type CoachingFeedbackSeverity = 'info' | 'warning' | 'critical';
+
+export class CoachingFeedbackDTO {
+  @Expose()
+  componentName: string;
+
+  @Expose()
+  message: string;
+
+  @Expose()
+  severity: CoachingFeedbackSeverity | null;
+}
+
+export class ComponentRatingDTO {
+  @Expose()
+  componentName: string;
+
+  @Expose()
+  rating: ComponentRatingValue;
+
+  @Expose()
+  reason: string | null;
+}
+
+export class ComponentScoreContributionDTO {
+  @Expose()
+  componentName: string;
+
+  @Expose()
+  rating: ComponentRatingValue;
+
+  @Expose()
+  weight: number;
+
+  @Expose()
+  score: number;
+
+  @Expose()
+  weightedScore: number;
+
+  @Expose()
+  reason: string | null;
+}
+
+export class RatingScaleDTO {
+  @Expose()
+  Good: number;
+
+  @Expose()
+  Caution: number;
+
+  @Expose()
+  'Needs attention': number;
+}
+
+export class BaseTrainingScoreDTO {
+  @Expose()
+  totalScore: number;
+
+  @Expose()
+  @Type(() => ComponentScoreContributionDTO)
+  components: ComponentScoreContributionDTO[];
+
+  @Expose()
+  @Type(() => RatingScaleDTO)
+  ratingScale: RatingScaleDTO;
+}
+
 export class RunningActivityAnalysisDTO {
   @Expose()
   id: number;
