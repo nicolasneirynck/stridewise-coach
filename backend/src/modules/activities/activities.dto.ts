@@ -201,6 +201,32 @@ export class BaseTrainingScoreDTO {
   ratingScale: RatingScaleDTO;
 }
 
+export class AnalysisPeriodDTO {
+  @Expose()
+  startDate: string;
+
+  @Expose()
+  endDate: string;
+}
+
+export class BaseCoachResultDTO {
+  @Expose()
+  @Type(() => AnalysisPeriodDTO)
+  analysisPeriod: AnalysisPeriodDTO | null;
+
+  @Expose()
+  @Type(() => BaseTrainingScoreDTO)
+  baseTrainingScore: BaseTrainingScoreDTO;
+
+  @Expose()
+  @Type(() => ComponentRatingDTO)
+  componentRatings: ComponentRatingDTO[];
+
+  @Expose()
+  @Type(() => CoachingFeedbackDTO)
+  feedbackMessages: CoachingFeedbackDTO[];
+}
+
 export class RunningActivityAnalysisDTO {
   @Expose()
   id: number;

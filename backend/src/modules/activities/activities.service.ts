@@ -19,11 +19,12 @@ import {
   type WeeklyRunningComparisonResult,
   LongestRunProgressionDTO,
   IntensityDistributionDTO,
-  BaseTrainingScoreDTO,
+  BaseCoachResultDTO,
 } from './activities.dto';
 import { StravaService } from '../strava/strava.service';
 import { TrainingEvaluationService } from './training-evaluation.service';
 import { BaseTrainingScoringService } from './base-training-scoring.service';
+import { BaseCoachingFeedbackService } from './base-coaching-feedback.service';
 
 type WeeklyRunningVolumeSummary = {
   totalRunningDistance: number;
@@ -64,6 +65,7 @@ export class ActivitiesService {
     private readonly stravaService: StravaService,
     private readonly trainingEvaluationService: TrainingEvaluationService,
     private readonly baseTrainingScoringService: BaseTrainingScoringService,
+    private readonly baseCoachingFeedbackService: BaseCoachingFeedbackService,
   ) {}
 
   async getActivities(
@@ -271,9 +273,7 @@ export class ActivitiesService {
       );
   }
 
-  async recalculateBaseTrainingScore(
-    user: Session,
-  ): Promise<BaseTrainingScoreDTO> {
+  async getBaseCoachResult(user: Session): Promise<BaseCoachResultDTO> {
     const weeklyRunningProgressions =
       await this.getWeeklyRunningProgression(user);
     const longestRunProgressions = await this.getLongestRunProgression(user);
@@ -291,9 +291,45 @@ export class ActivitiesService {
       ),
     ];
 
-    return this.baseTrainingScoringService.calculateBaseTrainingScore(
+    const baseTrainingScore =
+      this.baseTrainingScoringService.calculateBaseTrainingScore(
+        componentRatings,
+      );
+    const feedbackMessages = this.baseCoachingFeedbackService.generateFeedback(
       componentRatings,
+      {
+        intensityDistributions,
+        weeklyRunningProgressions,
+        longestRunProgressions,
+      },
     );
+
+    return {
+      analysisPeriod: this.getBaseCoachAnalysisPeriod(
+        weeklyRunningProgressions,
+      ),
+      baseTrainingScore,
+      componentRatings,
+      feedbackMessages,
+    };
+  }
+
+  private getBaseCoachAnalysisPeriod(
+    weeklyRunningProgressions: WeeklyRunningProgressionDTO[],
+  ): BaseCoachResultDTO['analysisPeriod'] {
+    const latestWeeklyRunningProgression =
+      weeklyRunningProgressions[weeklyRunningProgressions.length - 1];
+
+    if (!latestWeeklyRunningProgression) {
+      return null;
+    }
+
+    return {
+      startDate: latestWeeklyRunningProgression.weekStartDate,
+      endDate: this.getWeekEndDate(
+        latestWeeklyRunningProgression.weekStartDate,
+      ),
+    };
   }
 
   private toIntensityDistributionResponse(
@@ -389,6 +425,13 @@ export class ActivitiesService {
     weekStart.setUTCHours(0, 0, 0, 0);
 
     return weekStart.toISOString().slice(0, 10);
+  }
+
+  private getWeekEndDate(weekStartDate: string): string {
+    const weekEnd = new Date(`${weekStartDate}T00:00:00.000Z`);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+
+    return weekEnd.toISOString().slice(0, 10);
   }
 
   private fillMissingWeeks(
