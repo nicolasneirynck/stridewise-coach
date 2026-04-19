@@ -4,6 +4,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 const activitiesUrl = `${API_BASE_URL}/activities`
 const AUTH_TOKEN_STORAGE_KEY = 'stridewise_auth_token'
 
+export const BASE_COACH_RESULT_KEY = 'activities/base-coach-result'
+
 export type ActivityType = 'run' | 'hike' |'bike' | 'strengthtraining'
 export type ActivityTypeFilter = 'all' | ActivityType
 
@@ -25,10 +27,61 @@ export type RunningActivityGraphPoint = {
   averageHeartRate: number
 }
 
-export type WeeklyLoadDataPoint = {
-  weekStartDate: string,
-  totalLoad: number
+export type WeeklyRunningVolumeDataPoint = {
+  weekStartDate: string
+  totalRunningDistance: number
+  runCount: number
+  longestRunDistance: number
 }
+
+export type ComponentRatingValue = 'Good' | 'Caution' | 'Needs attention'
+export type CoachingFeedbackSeverity = 'info' | 'warning' | 'critical'
+
+export type ComponentRating = {
+  componentName: string
+  rating: ComponentRatingValue
+  reason: string | null
+}
+
+export type ComponentScoreContribution = {
+  componentName: string
+  rating: ComponentRatingValue
+  weight: number
+  score: number
+  weightedScore: number
+  reason: string | null
+}
+
+export type RatingScale = {
+  Good: number
+  Caution: number
+  'Needs attention': number
+}
+
+export type BaseTrainingScore = {
+  totalScore: number
+  components: ComponentScoreContribution[]
+  ratingScale: RatingScale
+}
+
+export type AnalysisPeriod = {
+  startDate: string
+  endDate: string
+}
+
+export type CoachingFeedbackMessage = {
+  componentName: string
+  message: string
+  severity: CoachingFeedbackSeverity | null
+}
+
+export type BaseCoachResult = {
+  analysisPeriod: AnalysisPeriod | null
+  baseTrainingScore: BaseTrainingScore
+  componentRatings: ComponentRating[]
+  feedbackMessages: CoachingFeedbackMessage[]
+}
+
 
 export type RunningActivityAnalysis = {
   id: number
@@ -82,36 +135,55 @@ export async function requestStoredActivities(filter:ActivityTypeFilter = 'all')
   }
 }
 
-  export async function requestRunningGraphData(): Promise<RunningActivityGraphPoint[]> {
-    const authToken = getAuthToken()
+export async function requestBaseCoachResult(): Promise<BaseCoachResult> {
+  const authToken = getAuthToken()
 
-    try {
-      const response = await axios.get<RunningActivityGraphPoint[]>(`${API_BASE_URL}/activities/running-graph`, {
+  try {
+    const response = await axios.get<BaseCoachResult>(
+      `${API_BASE_URL}/activities/base-coach-result`,
+      {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
-      });
+      },
+    )
 
-      return response.data
-    } catch (error) {
-      return handleExpiredAuth(error)
-    }
+    return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
   }
+}
 
-  export async function requestWeeklyLoadData(): Promise<WeeklyLoadDataPoint[]>{
-    const authToken = getAuthToken()
+export async function requestRunningGraphData(): Promise<RunningActivityGraphPoint[]> {
+  const authToken = getAuthToken()
 
-    try{
-      const response = await axios.get<WeeklyLoadDataPoint[]>(`${API_BASE_URL}/activities/weekly-load`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+  try {
+    const response = await axios.get<RunningActivityGraphPoint[]>(`${API_BASE_URL}/activities/running-graph`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
 
-      return response.data
-    } catch (error) {
-      return handleExpiredAuth(error)
-    }
+    return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
+}
+
+export async function requestWeeklyRunningVolumeData(): Promise<WeeklyRunningVolumeDataPoint[]> {
+  const authToken = getAuthToken()
+
+  try {
+    const response = await axios.get<WeeklyRunningVolumeDataPoint[]>(`${API_BASE_URL}/activities/weekly-running-volume`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+
+    return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
 }
 
 export async function requestTargetHeartRateActivities({

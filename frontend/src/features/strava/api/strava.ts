@@ -3,6 +3,7 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 const connectUrl = `${API_BASE_URL}/strava/connect-url`;
 const connectionStatusUrl = `${API_BASE_URL}/strava/connection-status`
+const disconnectUrl = `${API_BASE_URL}/strava/connection`
 const activitiesUrl = `${API_BASE_URL}/activities`
 const importUrl = `${API_BASE_URL}/activities/import-from-strava`
 const AUTH_TOKEN_STORAGE_KEY = 'stridewise_auth_token'
@@ -23,6 +24,7 @@ export type StravaImport = {
 
 export type StravaConnectionStatus ={
   athleteId: number | null,
+  athleteName: string | null,
   isConnected: boolean
 }
 
@@ -76,6 +78,20 @@ export async function requestStravaConnectionStatus():Promise<StravaConnectionSt
     })
 
     return response.data
+  } catch (error) {
+    return handleExpiredAuth(error)
+  }
+}
+
+export async function disconnectStravaConnection(): Promise<void> {
+  const authToken = getAuthToken()
+
+  try {
+    await axios.delete(disconnectUrl, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
   } catch (error) {
     return handleExpiredAuth(error)
   }

@@ -1,7 +1,11 @@
 import { useSearchParams } from 'react-router'
 import useSWR from 'swr'
 import useSWRMutation from 'swr/mutation'
-import { requestStravaConnectUrl, requestStravaConnectionStatus} from '../api/strava'
+import {
+  disconnectStravaConnection,
+  requestStravaConnectUrl,
+  requestStravaConnectionStatus,
+} from '../api/strava'
 import { StravaConnectCard } from '../components/StravaConnectCard'
 import { StravaConnectionSummary } from '../components/StravaConnectionSummary'
 import AsyncData from '../../../components/ui/AsyncData'
@@ -12,7 +16,8 @@ export function StravaConnectPage() {
 
   const {
     data: connectionStatus,
-    error: connectionStatusError
+    error: connectionStatusError,
+    mutate: mutateConnectionStatus,
   } = useSWR('strava/connection-status', requestStravaConnectionStatus)
 
   const reason = searchParams.get('reason')
@@ -38,10 +43,17 @@ export function StravaConnectPage() {
     error: connectError,
   } = useSWRMutation('strava/connect-url', requestStravaConnectUrl)
 
+  const {
+    trigger: triggerStravaDisconnect,
+    isMutating: isDisconnectingStrava,
+    error: disconnectError,
+  } = useSWRMutation('strava/disconnect', disconnectStravaConnection)
+
   const {handleImport,isImportingFromStrava,importError,importFeedback} = useStravaImport()
 
-  const connectionError = connectionStatusError ?? connectError ?? callbackError
+  const connectionError = connectionStatusError ?? connectError ?? disconnectError ?? callbackError
   const connectedAthleteId = isConnected && connectionStatus?.athleteId ? String(connectionStatus.athleteId) : null
+  const connectedAthleteName = isConnected ? connectionStatus?.athleteName ?? null : null
 
   const handleConnectClick = async () => {
     try {
@@ -63,6 +75,15 @@ export function StravaConnectPage() {
     }
   }
 
+  const handleDisconnectClick = async () => {
+    try {
+      await triggerStravaDisconnect()
+      await mutateConnectionStatus()
+    } catch {
+      // AsyncData will show the mutation error below
+    }
+  }
+
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
       <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
@@ -77,13 +98,18 @@ export function StravaConnectPage() {
         Link Strava so your activities can be imported into StrideWise.
       </p>
 
-      <StravaConnectCard loading={isConnectingStrava} onConnect={handleConnectClick} />
+      <StravaConnectCard
+        loading={isConnectingStrava || isDisconnectingStrava}
+        isConnected={isConnected}
+        onAction={isConnected ? handleDisconnectClick : handleConnectClick}
+      />
 
       <div className="mt-4">
         <AsyncData loading={false} error={connectionError}>
           {isConnected ? (
             <div className='flex flex-col gap-6'>
               <StravaConnectionSummary
+                athleteName={connectedAthleteName}
                 athleteId={connectedAthleteId}
                 onImport={handleImport}
                 isImporting={isImportingFromStrava}

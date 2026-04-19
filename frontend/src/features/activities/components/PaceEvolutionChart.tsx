@@ -1,7 +1,5 @@
 import type { ReactNode } from "react"
-import type { TooltipProps } from "recharts"
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
-import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
 
 type PaceEvolutionPoint = {
   date: string
@@ -17,6 +15,12 @@ type PaceEvolutionPointProp = {
   points: PaceEvolutionPoint[]
   rangeStartDate: Date
   rangeEndDate: Date
+}
+
+type PaceEvolutionTooltipProps = {
+  active?: boolean
+  payload?: ReadonlyArray<{ payload?: PaceEvolutionPoint }>
+  label?: ReactNode
 }
 
 function formatActivityDate(date: string): string {
@@ -61,6 +65,10 @@ function getMonthTicks(startDate: Date, endDate: Date): number[] {
   const ticks: number[] = []
   const current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1))
 
+  if (current < startDate) {
+    current.setUTCMonth(current.getUTCMonth() + 1)
+  }
+
   while (current <= endDate) {
     ticks.push(current.getTime())
     current.setUTCMonth(current.getUTCMonth() + 1)
@@ -69,7 +77,7 @@ function getMonthTicks(startDate: Date, endDate: Date): number[] {
   return ticks
 }
 
-function CustomTooltip({ active, payload, label }: TooltipProps<ValueType, NameType>) {
+function CustomTooltip({ active, payload, label }: PaceEvolutionTooltipProps) {
   if (!active || !payload || payload.length === 0) {
     return null
   }
@@ -107,6 +115,7 @@ export default function PaceEvolutionChart({
             dataKey="dateTimestamp"
             scale="time"
             domain={[rangeStartDate.getTime(), rangeEndDate.getTime()]}
+            padding={{ left: 16, right: 16 }}
             ticks={monthTicks}
             tickFormatter={formatMonthTick}
             label={{ value: 'Month', position: 'bottom', offset: 8 }}/>

@@ -54,6 +54,10 @@ function getMonthTicks(startDate: Date, endDate: Date): number[] {
   const ticks: number[] = []
   const current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1))
 
+  if (current < startDate) {
+    current.setUTCMonth(current.getUTCMonth() + 1)
+  }
+
   while (current <= endDate) {
     ticks.push(current.getTime())
     current.setUTCMonth(current.getUTCMonth() + 1)
@@ -78,6 +82,7 @@ export default function WeeklyTrainingLoadChart({
           dataKey="weekStartTimestamp"
           scale="time"
           domain={[rangeStartDate.getTime(), rangeEndDate.getTime()]}
+          padding={{ left: 16, right: 16 }}
           ticks={monthTicks}
           tickFormatter={formatMonthTick}
           label={{ value: 'Month', position: 'bottom', offset: 8 }}/>

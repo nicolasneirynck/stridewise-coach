@@ -1,12 +1,15 @@
 interface StravaConnectionSummaryProps {
+  athleteName: string | null
   athleteId: string | null
   onImport: () => Promise<void> | void
   isImporting: boolean
 }
 
 export function StravaConnectionSummary({
-  athleteId, onImport, isImporting
+  athleteName, athleteId, onImport, isImporting
 }: StravaConnectionSummaryProps) {
+  const connectedAccountLabel = athleteName ?? (athleteId ? `ID ${athleteId}` : 'Unavailable')
+
   return (
     <section className="rounded-3xl border border-stone-200 bg-linear-to-br from-orange-50 via-white to-stone-50 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
@@ -61,7 +64,7 @@ export function StravaConnectionSummary({
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <span className="inline-flex w-fit rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-zinc-600">
-          Athlete ID {athleteId ?? 'Unavailable'}
+          {connectedAccountLabel}
         </span>
       </div>
     </section>

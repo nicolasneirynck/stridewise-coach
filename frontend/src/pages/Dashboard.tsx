@@ -1,12 +1,16 @@
 import useSWR from "swr"
 import {
+  BASE_COACH_RESULT_KEY,
+  requestBaseCoachResult,
   requestTargetHeartRateActivities,
-  requestWeeklyLoadData,
+  requestWeeklyRunningVolumeData,
 } from "../features/activities/api/activities"
 import WeeklyTrainingLoadChart from "../features/activities/components/WeeklyTrainingLoadChart"
 import PaceEvolutionChart from "../features/activities/components/PaceEvolutionChart"
 import HeartRateRangeSlider from "../features/activities/components/HeartRateRangeSlider"
 import { useEffect, useState } from "react"
+import { BaseCoachOverviewCard } from "../features/activities/components/BaseCoachOverviewCard"
+
 
 type TimeRangeOption = 'lastYear' | 'last6Months' | 'last3Months'
 type ActivityNameFilterOption = 'General Aerobic Run' | 'Endurance Run' | 'Recovery Run'
@@ -50,21 +54,65 @@ export function Dashboard() {
     data: weeklyLoad,
     error: weeklyLoadError,
     isLoading: isWeeklyLoadLoading,
-  } = useSWR('activities/weekly-load',requestWeeklyLoadData)
+  } = useSWR('activities/weekly-running-volume', requestWeeklyRunningVolumeData)
 
-   const linePoints = weeklyLoad === undefined
-    ? []
-    : weeklyLoad
-        .filter((load) => {
-          const weekStartDate = new Date(`${load.weekStartDate}T00:00:00.000Z`)
+  const {
+    data: baseCoachResult,
+    error: baseCoachResultError,
+    isLoading: isBaseCoachResultLoading,
+  } = useSWR(BASE_COACH_RESULT_KEY, requestBaseCoachResult)
 
-          return weekStartDate >= weeklyLoadRangeStartDate && weekStartDate <= weeklyLoadRangeEndDate
-        })
-        .map((load) => ({
-          weekStartDate: load.weekStartDate,
-          weekStartTimestamp: new Date(`${load.weekStartDate}T00:00:00.000Z`).getTime(),
-          totalLoad: load.totalLoad,
-        }))
+
+  const linePoints = weeklyLoad === undefined
+  ? []
+  : weeklyLoad
+      .filter((load) => {
+        const weekStartDate = new Date(`${load.weekStartDate}T00:00:00.000Z`)
+
+        return weekStartDate >= weeklyLoadRangeStartDate && weekStartDate <= weeklyLoadRangeEndDate
+      })
+      .map((load) => ({
+        weekStartDate: load.weekStartDate,
+        weekStartTimestamp: new Date(`${load.weekStartDate}T00:00:00.000Z`).getTime(),
+        totalLoad: load.totalRunningDistance,
+      }))
+
+  const renderBaseCoachOverview = () => {
+    if (isBaseCoachResultLoading) {
+      return <p className="mt-8 text-sm text-zinc-600">Loading base coach result...</p>
+    }
+
+    if (baseCoachResultError) {
+      return (
+        <p className="mt-8 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {baseCoachResultError instanceof Error
+            ? baseCoachResultError.message
+            : 'Unable to load base coach result.'}
+        </p>
+      )
+    }
+
+    if (!baseCoachResult) {
+      return (
+        <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-6">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            No base coach result yet
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            Import running activities first, then the coach overview will appear here.
+          </p>
+        </div>
+      )
+    }
+
+
+    return (
+      <div className="mt-8">
+        <BaseCoachOverviewCard baseCoachResult={baseCoachResult} />
+      </div>
+    )
+  }
+
 
   const renderWeeklyLoadSection = () => {
     if (isWeeklyLoadLoading){
@@ -251,7 +299,10 @@ export function Dashboard() {
       <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-950">
         Dashboard
       </h1>
-      {renderTargetHeartRateSection()}
+      {renderBaseCoachOverview()}
+      <div className="mt-14">
+        {renderTargetHeartRateSection()}
+      </div>
       {renderWeeklyLoadSection()}
     </section>
   )
